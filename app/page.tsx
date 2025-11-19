@@ -40,6 +40,9 @@ export default function Home() {
   const [blobCount, setBlobCount] = useState(5);
   const [customFrom, setCustomFrom] = useState('#6366f1');
   const [customTo, setCustomTo] = useState('#ec4899');
+  
+  // NEW: Custom Background Image
+  const [bgImage, setBgImage] = useState('');
 
   // Canvas State
   const [elements, setElements] = useState<CanvasElement[]>([
@@ -97,7 +100,6 @@ export default function Home() {
 
   const addImage = () => {
     const newId = Date.now().toString();
-    // Default to a GitHub badge style
     setElements([...elements, { id: newId, type: 'image', src: "https://img.shields.io/badge/Badge-Example-blue", x: 700, y: 450, width: 120, height: 20 }]);
     setSelectedId(newId);
   };
@@ -117,6 +119,7 @@ export default function Home() {
     let url = `${origin}/api/badge?data=${encodeURIComponent(jsonString)}&h=${canvasHeight}&theme=${theme}&style=${style}`;
     if (style === 'ethereal') url += `&blobs=${blobCount}`;
     if (theme === 'custom') url += `&from=${encodeURIComponent(customFrom)}&to=${encodeURIComponent(customTo)}`;
+    if (bgImage) url += `&bg=${encodeURIComponent(bgImage)}`; // Include custom background
     return url;
   };
 
@@ -187,17 +190,19 @@ export default function Home() {
                  {selectedElement.type === 'image' && (
                    <>
                     <div>
-                       <label className="text-[10px] text-slate-500 uppercase block mb-1">Image URL</label>
+                       <label className="text-[10px] text-slate-500 uppercase block mb-1">Image/Marker URL</label>
                        <input type="text" value={selectedElement.src} onChange={(e) => updateSelected('src', e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs font-mono focus:ring-1 focus:ring-green-500 outline-none"/>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
+                         {/* UNLOCKED WIDTH: Up to 1400 (Full Widget Width) */}
                          <label className="text-[10px] text-slate-500 uppercase block mb-1">Width ({selectedElement.width}px)</label>
-                         <input type="range" min="20" max="400" value={selectedElement.width} onChange={(e) => updateSelected('width', parseInt(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"/>
+                         <input type="range" min="20" max="1400" value={selectedElement.width} onChange={(e) => updateSelected('width', parseInt(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"/>
                       </div>
                       <div>
+                         {/* UNLOCKED HEIGHT: Up to current Canvas Height */}
                          <label className="text-[10px] text-slate-500 uppercase block mb-1">Height ({selectedElement.height}px)</label>
-                         <input type="range" min="20" max="400" value={selectedElement.height} onChange={(e) => updateSelected('height', parseInt(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"/>
+                         <input type="range" min="20" max={canvasHeight} value={selectedElement.height} onChange={(e) => updateSelected('height', parseInt(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"/>
                       </div>
                     </div>
                    </>
@@ -211,24 +216,43 @@ export default function Home() {
           {/* Global Settings */}
           <div className="space-y-4 pt-4 border-t border-slate-800">
              <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider">Global Settings</h3>
+             
+             {/* Custom Background Input */}
              <div>
-                <label className="text-[10px] text-slate-500 uppercase block mb-2">Theme</label>
-                <div className="flex gap-2 flex-wrap">
-                   {['blue', 'purple', 'green', 'orange', 'custom'].map(t => (
-                      <button key={t} onClick={() => setTheme(t)} className={`w-6 h-6 rounded-full border ${theme === t ? 'border-white scale-110' : 'border-transparent opacity-50'}`} style={{background: t === 'custom' ? '#fff' : `var(--color-${t})`, backgroundColor: t==='custom'?'white':(t==='blue'?'#2563eb':t==='purple'?'#7c3aed':t==='green'?'#059669':'#ea580c')}} />
-                   ))}
-                </div>
+                <label className="text-[10px] text-slate-500 uppercase block mb-1">Custom Background URL</label>
+                <input 
+                  type="text" 
+                  value={bgImage} 
+                  onChange={(e) => setBgImage(e.target.value)} 
+                  placeholder="https://example.com/my-bg.gif"
+                  className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
+                />
+                <p className="text-[9px] text-slate-600 mt-1">Supports GIFs. Leave empty for default theme.</p>
              </div>
-             {theme === 'custom' && (
-                <div className="grid grid-cols-2 gap-2">
-                   <input type="color" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-full h-8 bg-transparent cursor-pointer"/>
-                   <input type="color" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-full h-8 bg-transparent cursor-pointer"/>
-                </div>
+
+             {/* Only show Theme options if no custom background is set */}
+             {!bgImage && (
+               <>
+                 <div>
+                    <label className="text-[10px] text-slate-500 uppercase block mb-2">Theme</label>
+                    <div className="flex gap-2 flex-wrap">
+                       {['blue', 'purple', 'green', 'orange', 'custom'].map(t => (
+                          <button key={t} onClick={() => setTheme(t)} className={`w-6 h-6 rounded-full border ${theme === t ? 'border-white scale-110' : 'border-transparent opacity-50'}`} style={{background: t === 'custom' ? '#fff' : `var(--color-${t})`, backgroundColor: t==='custom'?'white':(t==='blue'?'#2563eb':t==='purple'?'#7c3aed':t==='green'?'#059669':'#ea580c')}} />
+                       ))}
+                    </div>
+                 </div>
+                 {theme === 'custom' && (
+                    <div className="grid grid-cols-2 gap-2">
+                       <input type="color" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-full h-8 bg-transparent cursor-pointer"/>
+                       <input type="color" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-full h-8 bg-transparent cursor-pointer"/>
+                    </div>
+                 )}
+                 <div>
+                    <label className="text-[10px] text-slate-500 uppercase block mb-2">Animation Blobs: {blobCount}</label>
+                    <input type="range" min="1" max="10" value={blobCount} onChange={(e) => setBlobCount(parseInt(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"/>
+                 </div>
+               </>
              )}
-             <div>
-                <label className="text-[10px] text-slate-500 uppercase block mb-2">Animation Blobs: {blobCount}</label>
-                <input type="range" min="1" max="10" value={blobCount} onChange={(e) => setBlobCount(parseInt(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"/>
-             </div>
           </div>
         </div>
 
@@ -240,16 +264,20 @@ export default function Home() {
               style={{ 
                 width: '1000px', 
                 height: `${(canvasHeight / 1400) * 1000}px`, 
-                backgroundImage: 'radial-gradient(#1e293b 1px, transparent 1px)', 
-                backgroundSize: '20px 20px',
+                // Show custom background in editor preview if set, otherwise use pattern
+                backgroundImage: bgImage ? `url(${bgImage})` : 'radial-gradient(#1e293b 1px, transparent 1px)', 
+                backgroundSize: bgImage ? 'cover' : '20px 20px',
+                backgroundPosition: 'center',
                 boxShadow: '0 0 100px rgba(0,0,0,0.5)'
               }}
            >
-              {/* Background Hint */}
-              <div className="absolute inset-0 overflow-hidden opacity-50 pointer-events-none">
-                 <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full blur-[60px] opacity-60" style={{ background: theme === 'custom' ? customFrom : 'blue' }}></div>
-                 <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full blur-[60px] opacity-60" style={{ background: theme === 'custom' ? customTo : 'purple' }}></div>
-              </div>
+              {/* Background Hint (Only if no custom BG) */}
+              {!bgImage && (
+                <div className="absolute inset-0 overflow-hidden opacity-50 pointer-events-none">
+                   <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full blur-[60px] opacity-60" style={{ background: theme === 'custom' ? customFrom : 'blue' }}></div>
+                   <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full blur-[60px] opacity-60" style={{ background: theme === 'custom' ? customTo : 'purple' }}></div>
+                </div>
+              )}
 
               {elements.map(el => (
                  <div
@@ -275,7 +303,7 @@ export default function Home() {
                         style={{ 
                           width: `${((el.width || 100) / 1400) * 1000}px`,
                           height: `${((el.height || 20) / 1400) * 1000}px`,
-                          objectFit: 'contain'
+                          objectFit: 'contain' // Ensure markers don't distort
                         }} 
                       />
                     )}

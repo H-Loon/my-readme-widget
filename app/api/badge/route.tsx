@@ -5,8 +5,6 @@ export async function GET(request: Request) {
   
   const rawData = searchParams.get('data');
   const dynamicHeight = parseInt(searchParams.get('h') || '600');
-  
-  // New Param: Custom Background URL
   const customBgUrl = searchParams.get('bg');
   
   let elements = [
@@ -87,10 +85,17 @@ export async function GET(request: Request) {
     }
 
     if (el.type === 'image') {
-      const dataUri = await fetchImageToBase64(el.src);
+      let targetUrl = el.src;
+
+      // --- AUTO-FIX FOR GITHUB STATS ---
+      // Detects github-readme-stats and forces animations OFF so it renders immediately
+      if (targetUrl.includes('github-readme-stats.vercel.app') && !targetUrl.includes('disable_animations')) {
+         targetUrl += targetUrl.includes('?') ? '&disable_animations=true' : '?disable_animations=true';
+      }
+
+      const dataUri = await fetchImageToBase64(targetUrl);
       if (!dataUri) return '';
 
-      // Center pivot adjustment
       let xOffset = -(el.width / 2);
       let yOffset = -(el.height / 2);
 
@@ -112,19 +117,16 @@ export async function GET(request: Request) {
   // --- BACKGROUND LOGIC ---
   let backgroundSvg = '';
 
-  // 1. Custom Image Background (Highest Priority)
   if (customBgUrl) {
     const bgDataUri = await fetchImageToBase64(customBgUrl);
     if (bgDataUri) {
-      // We use preserveAspectRatio="none" to force the image/gif to fill the container
       backgroundSvg = `
         <image href="${bgDataUri}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" />
-        <rect width="${width}" height="${height}" fill="black" opacity="0.3" /> <!-- Optional overlay to make text readable -->
+        <rect width="${width}" height="${height}" fill="black" opacity="0.3" />
       `;
     }
   }
   
-  // 2. Ethereal Liquid Background (If no custom BG)
   if (!backgroundSvg && style === 'ethereal') {
     const padding = 250;
     const minX = padding;
@@ -168,7 +170,6 @@ export async function GET(request: Request) {
     `;
   } 
   
-  // 3. Fallback Simple Background
   if (!backgroundSvg) {
     backgroundSvg = `
       <defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${t.from}" /><stop offset="100%" stop-color="${t.to}" /></linearGradient></defs>

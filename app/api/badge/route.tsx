@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   };
   const t = themes[theme] || themes.blue;
 
-  // --- CANVAS DIMENSIONS (Fixed to prevent GitHub Proxy issues) ---
+  // --- CANVAS DIMENSIONS ---
   const width = 1400;
   const height = 600;
 
@@ -28,7 +28,8 @@ export async function GET(request: Request) {
   let contentSvg = '';
   
   if (style === 'ethereal') {
-    const padding = 100;
+    // Padding increased to 250 to strictly contain the blurred edges
+    const padding = 250;
     const minX = padding;
     const maxX = width - padding;
     const minY = padding;
@@ -40,17 +41,26 @@ export async function GET(request: Request) {
       const r2 = ((i + 1) * 211.31) % 1;
       const r3 = ((i + 1) * 73.19) % 1;
 
+      // Start Position
       const startX = minX + (i * segmentWidth) + (r1 * segmentWidth * 0.5);
       const startY = minY + (r2 * (maxY - minY));
 
+      // Motion Calculation
       let driftX = (r3 > 0.5 ? 1 : -1) * (150 + (r1 * 150));
-      if (startX + driftX > width - 50) driftX = -200;
-      if (startX + driftX < 50) driftX = 200;
+      let driftY = (r2 - 0.5) * 200;
 
-      const driftY = (r2 - 0.5) * 200;
+      // Smart Bounce: If destination is out of bounds, reverse direction
+      if (startX + driftX > maxX) driftX = -Math.abs(driftX);
+      if (startX + driftX < minX) driftX = Math.abs(driftX);
+      
+      if (startY + driftY > maxY) driftY = -Math.abs(driftY);
+      if (startY + driftY < minY) driftY = Math.abs(driftY);
+
       const midX = startX + driftX;
       const midY = startY + driftY;
-      const r = 70 + (r2 * 50);
+      
+      // Slightly reduced radius to help with spacing
+      const r = 60 + (r2 * 40);
       const dur = 20 + (r1 * 10);
       const fill = i % 2 === 0 ? 'url(#blob1)' : 'url(#blob2)';
 
@@ -69,7 +79,7 @@ export async function GET(request: Request) {
       <g filter="url(#goo)" opacity="0.8">${blobCode}</g>
     `;
   } else {
-    // Fallback for other styles (Simple Static Background)
+    // Fallback
     contentSvg = `
       <defs>
         <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${t.from}" /><stop offset="100%" stop-color="${t.to}" /></linearGradient>
@@ -80,7 +90,6 @@ export async function GET(request: Request) {
     `;
   }
 
-  // --- FINAL SVG CONSTRUCTION ---
   const svg = `
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
       ${contentSvg}

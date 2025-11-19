@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
   // --- CANVAS DIMENSIONS ---
   const width = 1400;
-  const height = 1600;
+  const height = 800;
 
   // --- GENERATE BLOBS (Only for Ethereal) ---
   let contentSvg = '';

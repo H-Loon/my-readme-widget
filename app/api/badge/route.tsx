@@ -6,6 +6,9 @@ export async function GET(request: Request) {
   const rawData = searchParams.get('data');
   const dynamicHeight = parseInt(searchParams.get('h') || '600');
   
+  // New Param: Custom Background URL
+  const customBgUrl = searchParams.get('bg');
+  
   let elements = [
     { type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, size: 48, color: "#334155", bold: true, align: "middle" },
     { type: 'text', text: "Building things for the web", x: 700, y: 260, size: 24, color: "#64748b", bold: false, align: "middle" }
@@ -37,10 +40,31 @@ export async function GET(request: Request) {
   const width = 1400;
   const height = dynamicHeight;
 
+  // --- HELPER: Fetch and Convert Image to Base64 ---
+  const fetchImageToBase64 = async (url: string) => {
+    try {
+      const imgRes = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ReadmeWidget/1.0)' }
+      });
+      if (!imgRes.ok) return null;
+      
+      const arrayBuffer = await imgRes.arrayBuffer();
+      let binary = '';
+      const bytes = new Uint8Array(arrayBuffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+      
+      const base64 = btoa(binary);
+      const contentType = imgRes.headers.get('content-type') || 'image/png';
+      return `data:${contentType};base64,${base64}`;
+    } catch (e) {
+      console.error("Error fetching image:", url, e);
+      return null;
+    }
+  };
+
   // --- ELEMENT RENDERING ---
   const renderedElements = await Promise.all(elements.map(async (el: any) => {
-    
-    // >> TEXT RENDERER
     if (el.type === 'text' || !el.type) {
       const fontWeight = el.bold ? 'bold' : 'normal';
       const textDecoration = el.underline ? 'underline' : 'none';
@@ -62,53 +86,23 @@ export async function GET(request: Request) {
       `;
     }
 
-    // >> IMAGE/MARKER RENDERER (FIXED)
     if (el.type === 'image') {
-      try {
-        // FIX 1: Add User-Agent header so Shields.io/GitHub don't block us
-        const imgRes = await fetch(el.src, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; ReadmeWidget/1.0)'
-          }
-        });
-        
-        if (!imgRes.ok) {
-          console.error(`Failed to fetch image: ${el.src} (${imgRes.status})`);
-          return ''; 
-        }
-        
-        const arrayBuffer = await imgRes.arrayBuffer();
-        
-        // FIX 2: Robust Base64 Conversion for Edge
-        // We manually convert the buffer to base64 string to avoid stack overflow on large images
-        let binary = '';
-        const bytes = new Uint8Array(arrayBuffer);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const base64 = btoa(binary);
-        
-        const contentType = imgRes.headers.get('content-type') || 'image/png';
-        const dataUri = `data:${contentType};base64,${base64}`;
+      const dataUri = await fetchImageToBase64(el.src);
+      if (!dataUri) return '';
 
-        // Center pivot adjustment
-        let xOffset = -(el.width / 2);
-        let yOffset = -(el.height / 2);
+      // Center pivot adjustment
+      let xOffset = -(el.width / 2);
+      let yOffset = -(el.height / 2);
 
-        return `
-          <image 
-            href="${dataUri}" 
-            x="${el.x + xOffset}" 
-            y="${el.y + yOffset}" 
-            width="${el.width}" 
-            height="${el.height}" 
-          />
-        `;
-      } catch (error) {
-        console.error("Error processing image:", error);
-        return ''; 
-      }
+      return `
+        <image 
+          href="${dataUri}" 
+          x="${el.x + xOffset}" 
+          y="${el.y + yOffset}" 
+          width="${el.width}" 
+          height="${el.height}" 
+        />
+      `;
     }
     return '';
   }));
@@ -117,7 +111,21 @@ export async function GET(request: Request) {
 
   // --- BACKGROUND LOGIC ---
   let backgroundSvg = '';
-  if (style === 'ethereal') {
+
+  // 1. Custom Image Background (Highest Priority)
+  if (customBgUrl) {
+    const bgDataUri = await fetchImageToBase64(customBgUrl);
+    if (bgDataUri) {
+      // We use preserveAspectRatio="none" to force the image/gif to fill the container
+      backgroundSvg = `
+        <image href="${bgDataUri}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" />
+        <rect width="${width}" height="${height}" fill="black" opacity="0.3" /> <!-- Optional overlay to make text readable -->
+      `;
+    }
+  }
+  
+  // 2. Ethereal Liquid Background (If no custom BG)
+  if (!backgroundSvg && style === 'ethereal') {
     const padding = 250;
     const minX = padding;
     const maxX = width - padding;
@@ -158,7 +166,10 @@ export async function GET(request: Request) {
       </defs>
       <g filter="url(#goo)" opacity="0.8">${blobCode}</g>
     `;
-  } else {
+  } 
+  
+  // 3. Fallback Simple Background
+  if (!backgroundSvg) {
     backgroundSvg = `
       <defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${t.from}" /><stop offset="100%" stop-color="${t.to}" /></linearGradient></defs>
       <rect width="${width}" height="${height}" fill="${t.bg}" />

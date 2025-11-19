@@ -22,14 +22,14 @@ export async function GET(request: Request) {
 
   // --- CANVAS DIMENSIONS ---
   const width = 1400;
-  const height = 600;
+  const height = 1600;
 
   // --- GENERATE BLOBS (Only for Ethereal) ---
   let contentSvg = '';
   
   if (style === 'ethereal') {
     // Padding increased to 250 to strictly contain the blurred edges
-    const padding = 250;
+    const padding = 100;
     const minX = padding;
     const maxX = width - padding;
     const minY = padding;

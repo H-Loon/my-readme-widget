@@ -3,7 +3,6 @@ export const runtime = 'edge';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   
-  // --- DYNAMIC DATA ---
   const rawData = searchParams.get('data');
   const dynamicHeight = parseInt(searchParams.get('h') || '600');
   
@@ -39,7 +38,6 @@ export async function GET(request: Request) {
   const height = dynamicHeight;
 
   // --- ELEMENT RENDERING ---
-  // We use Promise.all to fetch images in parallel if there are any markers
   const renderedElements = await Promise.all(elements.map(async (el: any) => {
     
     // >> TEXT RENDERER
@@ -64,27 +62,39 @@ export async function GET(request: Request) {
       `;
     }
 
-    // >> IMAGE/MARKER RENDERER
+    // >> IMAGE/MARKER RENDERER (FIXED)
     if (el.type === 'image') {
       try {
-        // We MUST fetch and embed base64 for GitHub to show it
-        const imgRes = await fetch(el.src);
-        if (!imgRes.ok) return ''; // Skip failed images
+        // FIX 1: Add User-Agent header so Shields.io/GitHub don't block us
+        const imgRes = await fetch(el.src, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; ReadmeWidget/1.0)'
+          }
+        });
+        
+        if (!imgRes.ok) {
+          console.error(`Failed to fetch image: ${el.src} (${imgRes.status})`);
+          return ''; 
+        }
         
         const arrayBuffer = await imgRes.arrayBuffer();
-        // Convert to Base64 in Edge Runtime
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        
+        // FIX 2: Robust Base64 Conversion for Edge
+        // We manually convert the buffer to base64 string to avoid stack overflow on large images
+        let binary = '';
+        const bytes = new Uint8Array(arrayBuffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+        
         const contentType = imgRes.headers.get('content-type') || 'image/png';
         const dataUri = `data:${contentType};base64,${base64}`;
 
-        // Center the image on its X/Y coordinates to behave like text anchor="middle"
-        // If user aligns 'start', we don't offset. If 'middle', we offset by width/2.
-        let xOffset = 0;
-        let yOffset = 0;
-        
-        // Default behavior in our editor is center-pivot, so we adjust:
-        xOffset = -(el.width / 2);
-        yOffset = -(el.height / 2);
+        // Center pivot adjustment
+        let xOffset = -(el.width / 2);
+        let yOffset = -(el.height / 2);
 
         return `
           <image 
@@ -96,7 +106,7 @@ export async function GET(request: Request) {
           />
         `;
       } catch (error) {
-        console.error("Error fetching image:", error);
+        console.error("Error processing image:", error);
         return ''; 
       }
     }

@@ -12,26 +12,28 @@ const Icons = {
   Bold: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>,
   Underline: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" x2="20" y1="21" y2="21"/></svg>,
   Move: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>,
-  Image: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+  Image: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>,
+  Scale: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 3 9 15"/><path d="M12 3H3v18h18v-9"/><path d="M16 3h5v5"/><path d="M14 10l7-7"/></svg>,
+  Max: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>,
+  Fit: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
 };
 
-// --- TYPES ---
 interface CanvasElement {
   id: string;
   type: 'text' | 'image';
   x: number;
   y: number;
-  // Text props
   text?: string;
   color?: string;
   size?: number;
   bold?: boolean;
   underline?: boolean;
   align?: 'start' | 'middle' | 'end';
-  // Image props
   src?: string;
   width?: number;
   height?: number;
+  scale?: number;
+  fit?: 'contain' | 'cover' | 'stretch';
 }
 
 export default function Home() {
@@ -40,49 +42,62 @@ export default function Home() {
   const [blobCount, setBlobCount] = useState(5);
   const [customFrom, setCustomFrom] = useState('#6366f1');
   const [customTo, setCustomTo] = useState('#ec4899');
-  
-  // NEW: Custom Background Image
   const [bgImage, setBgImage] = useState('');
+  const [canvasWidth, setCanvasWidth] = useState(1400);
+  const [canvasHeight, setCanvasHeight] = useState(600);
 
-  // Canvas State
   const [elements, setElements] = useState<CanvasElement[]>([
     { id: '1', type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, color: '#334155', size: 48, bold: true, underline: false, align: 'middle' },
     { id: '2', type: 'text', text: "Building things for the web", x: 700, y: 260, color: '#64748b', size: 24, bold: false, underline: false, align: 'middle' },
   ]);
   const [selectedId, setSelectedId] = useState<string | null>('1');
-  const [canvasHeight, setCanvasHeight] = useState(600);
   
   const [origin, setOrigin] = useState('');
   const [copied, setCopied] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setOrigin(window.location.origin);
   }, []);
 
-  useEffect(() => {
-    if (elements.length === 0) return;
-    const lowestY = Math.max(...elements.map(e => e.y + (e.type === 'image' ? (e.height || 0)/2 : 0)));
-    const newHeight = Math.max(600, lowestY + 150);
-    if (newHeight !== canvasHeight) setCanvasHeight(newHeight);
-  }, [elements]);
-
   const handleMouseDown = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setSelectedId(id);
     setIsDragging(true);
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      const scale = canvasWidth / rect.width;
+      const mouseX = (e.clientX - rect.left) * scale;
+      const mouseY = (e.clientY - rect.top) * scale;
+      const el = elements.find(e => e.id === id);
+      if (el) {
+        if (el.type === 'text') {
+          dragOffset.current = { x: mouseX - el.x, y: mouseY - el.y };
+        } else {
+          dragOffset.current = { x: mouseX - el.x, y: mouseY - el.y };
+        }
+      }
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || !selectedId || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const scale = 1400 / rect.width;
-    const x = (e.clientX - rect.left) * scale;
-    const y = (e.clientY - rect.top) * scale;
+    const scale = canvasWidth / rect.width;
+    const mouseX = (e.clientX - rect.left) * scale;
+    const mouseY = (e.clientY - rect.top) * scale;
 
     setElements(prev => prev.map(el => {
-      if (el.id === selectedId) return { ...el, x: Math.round(x), y: Math.round(y) };
+      if (el.id === selectedId) {
+        return { 
+          ...el, 
+          x: Math.round(mouseX - dragOffset.current.x), 
+          y: Math.round(mouseY - dragOffset.current.y) 
+        };
+      }
       return el;
     }));
   };
@@ -90,17 +105,25 @@ export default function Home() {
   const handleMouseUp = () => {
     setIsDragging(false);
   };
+  
+  const fitCanvasToContent = () => {
+    if (elements.length > 0) {
+       const lowestY = Math.max(...elements.map(e => e.y + (e.type === 'image' ? (e.height || 0)/2 : 0)));
+       setCanvasHeight(Math.max(600, Math.round(lowestY + 150)));
+    }
+  };
 
-  // --- ELEMENT MANAGEMENT ---
   const addText = () => {
     const newId = Date.now().toString();
-    setElements([...elements, { id: newId, type: 'text', text: "New Text", x: 700, y: 350, color: '#334155', size: 32, bold: false, underline: false, align: 'middle' }]);
+    setElements([...elements, { id: newId, type: 'text', text: "New Text", x: canvasWidth / 2, y: canvasHeight / 2, color: '#334155', size: 32, bold: false, underline: false, align: 'middle' }]);
     setSelectedId(newId);
   };
 
   const addImage = () => {
     const newId = Date.now().toString();
-    setElements([...elements, { id: newId, type: 'image', src: "https://img.shields.io/badge/Badge-Example-blue", x: 700, y: 450, width: 120, height: 20 }]);
+    const startX = (canvasWidth / 2) - 60; 
+    const startY = (canvasHeight / 2) + 50;
+    setElements([...elements, { id: newId, type: 'image', src: "https://img.shields.io/badge/Badge-Example-blue", x: startX, y: startY, width: 120, height: 20, scale: 1.0, fit: 'contain' }]);
     setSelectedId(newId);
   };
 
@@ -108,24 +131,81 @@ export default function Home() {
     setElements(prev => prev.map(el => el.id === selectedId ? { ...el, [key]: value } : el));
   };
 
+  const updateScale = (newScale: number) => {
+    setElements(prev => prev.map(el => {
+      if (el.id === selectedId && el.type === 'image') {
+        const oldScale = el.scale || 1;
+        const safeOldScale = oldScale === 0 ? 1 : oldScale;
+        const ratio = newScale / safeOldScale;
+        return {
+          ...el,
+          scale: newScale,
+          width: Math.round(el.width! * ratio),
+          height: Math.round(el.height! * ratio)
+        };
+      }
+      return el;
+    }));
+  };
+
+  const updateDimension = (key: 'width' | 'height', newVal: number) => {
+      setElements(prev => prev.map(el => {
+         if (el.id === selectedId) return { ...el, [key]: newVal };
+         return el;
+      }));
+  };
+
   const deleteSelected = () => {
     setElements(prev => prev.filter(el => el.id !== selectedId));
     setSelectedId(null);
   };
 
+  const fitToWidth = () => {
+    setElements(prev => prev.map(el => {
+      if (el.id === selectedId) return { ...el, width: canvasWidth, x: 0 };
+      return el;
+    }));
+  };
+
+  const fitToHeight = () => {
+    setElements(prev => prev.map(el => {
+      if (el.id === selectedId) return { ...el, height: canvasHeight, y: 0 };
+      return el;
+    }));
+  };
+
   const getApiUrl = () => {
-    const minifiedElements = elements.map(({ id, ...rest }) => rest);
+    const minifiedElements = elements.map(({ id, scale, ...rest }) => rest);
     const jsonString = JSON.stringify(minifiedElements);
-    let url = `${origin}/api/badge?data=${encodeURIComponent(jsonString)}&h=${canvasHeight}&theme=${theme}&style=${style}`;
+    let url = `${origin}/api/badge?data=${encodeURIComponent(jsonString)}&h=${canvasHeight}&w=${canvasWidth}&theme=${theme}&style=${style}`;
     if (style === 'ethereal') url += `&blobs=${blobCount}`;
     if (theme === 'custom') url += `&from=${encodeURIComponent(customFrom)}&to=${encodeURIComponent(customTo)}`;
-    if (bgImage) url += `&bg=${encodeURIComponent(bgImage)}`; // Include custom background
+    if (bgImage) url += `&bg=${encodeURIComponent(bgImage)}`;
     return url;
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(`![Widget](${getApiUrl()})`);
-    setCopied(true);
+  const handleCopy = async () => {
+    const text = `![Widget](${getApiUrl()})`;
+    
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch (err) {
+      // Fallback for iframe restrictions
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed'; // Avoid scrolling to bottom
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+      } catch (e) {
+        console.error('Copy failed', e);
+      }
+      document.body.removeChild(textarea);
+    }
+    
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -139,6 +219,13 @@ export default function Home() {
           <h1 className="font-bold">Widget Canvas Editor</h1>
         </div>
         <div className="flex items-center gap-4">
+          <div className="flex gap-2 items-center text-xs text-slate-500 bg-slate-900 px-3 py-1 rounded border border-slate-800">
+             <span>Canvas:</span>
+             <input type="number" value={canvasWidth} onChange={e => setCanvasWidth(parseInt(e.target.value))} className="w-12 bg-transparent text-white text-center outline-none border-b border-slate-700 focus:border-purple-500"/>
+             <span>x</span>
+             <input type="number" value={canvasHeight} onChange={e => setCanvasHeight(parseInt(e.target.value))} className="w-12 bg-transparent text-white text-center outline-none border-b border-slate-700 focus:border-purple-500"/>
+             <button onClick={fitCanvasToContent} title="Auto-fit Height" className="hover:text-white text-slate-400"><Icons.Fit size={14}/></button>
+          </div>
           <button onClick={handleCopy} className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${copied ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-500'}`}>
             {copied ? <Icons.Check size={16} /> : <Icons.Copy size={16} />} {copied ? 'Copied!' : 'Get Code'}
           </button>
@@ -158,8 +245,6 @@ export default function Home() {
              
              {selectedElement ? (
                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-4">
-                 
-                 {/* TEXT EDITOR */}
                  {selectedElement.type === 'text' && (
                    <>
                      <div>
@@ -186,24 +271,83 @@ export default function Home() {
                    </>
                  )}
 
-                 {/* IMAGE EDITOR */}
                  {selectedElement.type === 'image' && (
                    <>
                     <div>
                        <label className="text-[10px] text-slate-500 uppercase block mb-1">Image/Marker URL</label>
                        <input type="text" value={selectedElement.src} onChange={(e) => updateSelected('src', e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs font-mono focus:ring-1 focus:ring-green-500 outline-none"/>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                         {/* UNLOCKED WIDTH: Up to 1400 (Full Widget Width) */}
-                         <label className="text-[10px] text-slate-500 uppercase block mb-1">Width ({selectedElement.width}px)</label>
-                         <input type="range" min="20" max="1400" value={selectedElement.width} onChange={(e) => updateSelected('width', parseInt(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"/>
-                      </div>
-                      <div>
-                         {/* UNLOCKED HEIGHT: Up to current Canvas Height */}
-                         <label className="text-[10px] text-slate-500 uppercase block mb-1">Height ({selectedElement.height}px)</label>
-                         <input type="range" min="20" max={canvasHeight} value={selectedElement.height} onChange={(e) => updateSelected('height', parseInt(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"/>
-                      </div>
+
+                    <div>
+                       <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] text-slate-500 uppercase flex items-center gap-1"><Icons.Scale size={10}/> Scale (Multipler)</label>
+                          <span className="text-[10px] font-mono text-green-400">{selectedElement.scale?.toFixed(1)}x</span>
+                       </div>
+                       <div className="flex gap-2 items-center">
+                          <input 
+                            type="range" min="0.1" max="15" step="0.1" value={selectedElement.scale || 1} 
+                            onChange={(e) => updateScale(parseFloat(e.target.value))} 
+                            className="flex-1 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"
+                          />
+                          <input 
+                            type="number" step="0.1" min="0.1" max="15" value={selectedElement.scale || 1} 
+                            onChange={(e) => updateScale(parseFloat(e.target.value))} 
+                            className="w-12 bg-slate-900 border border-slate-800 rounded p-1 text-xs text-center focus:ring-1 focus:ring-green-500 outline-none"
+                          />
+                       </div>
+                    </div>
+                    
+                    <div>
+                       <label className="text-[10px] text-slate-500 uppercase block mb-1">Dimensions (Px)</label>
+                       <div className="grid grid-cols-2 gap-2">
+                          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2">
+                             <span className="text-[10px] text-slate-500 mr-1">W:</span>
+                             <input 
+                               type="number" 
+                               value={selectedElement.width} 
+                               onChange={(e) => updateDimension('width', parseInt(e.target.value))} 
+                               className="w-full bg-transparent text-xs text-white py-1 outline-none"
+                             />
+                          </div>
+                          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2">
+                             <span className="text-[10px] text-slate-500 mr-1">H:</span>
+                             <input 
+                               type="number" 
+                               value={selectedElement.height} 
+                               onChange={(e) => updateDimension('height', parseInt(e.target.value))} 
+                               className="w-full bg-transparent text-xs text-white py-1 outline-none"
+                             />
+                          </div>
+                       </div>
+                       <div className="grid grid-cols-2 gap-2 mt-1">
+                          <input 
+                            type="range" min="20" max="4000" 
+                            value={selectedElement.width} 
+                            onChange={(e) => updateDimension('width', parseInt(e.target.value))} 
+                            className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"
+                          />
+                          <input 
+                            type="range" min="20" max="4000" 
+                            value={selectedElement.height} 
+                            onChange={(e) => updateDimension('height', parseInt(e.target.value))} 
+                            className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"
+                          />
+                       </div>
+                    </div>
+
+                    <div>
+                       <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] text-slate-500 uppercase block">Fit Mode</label>
+                          <div className="flex gap-1">
+                            <button onClick={fitToWidth} className="text-[8px] bg-slate-800 px-1.5 py-0.5 rounded text-green-400 hover:bg-slate-700 flex items-center gap-0.5" title="Fit to Width"><Icons.Max size={8}/> W</button>
+                            <button onClick={fitToHeight} className="text-[8px] bg-slate-800 px-1.5 py-0.5 rounded text-green-400 hover:bg-slate-700 flex items-center gap-0.5" title="Fit to Height"><Icons.Max size={8}/> H</button>
+                          </div>
+                       </div>
+                       <div className="flex bg-slate-900 rounded border border-slate-800 p-1 gap-1">
+                         {['contain', 'cover', 'stretch'].map((mode) => (
+                           <button key={mode} onClick={() => updateSelected('fit', mode)} className={`flex-1 text-[10px] py-1.5 rounded capitalize ${selectedElement.fit === mode || (!selectedElement.fit && mode === 'contain') ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'text-slate-500 hover:text-slate-300'}`}>{mode}</button>
+                         ))}
+                       </div>
                     </div>
                    </>
                  )}
@@ -213,24 +357,12 @@ export default function Home() {
              ) : <div className="h-32 flex items-center justify-center text-slate-600 text-sm italic border border-dashed border-slate-800 rounded-xl">Select an item</div>}
           </div>
 
-          {/* Global Settings */}
           <div className="space-y-4 pt-4 border-t border-slate-800">
              <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider">Global Settings</h3>
-             
-             {/* Custom Background Input */}
              <div>
                 <label className="text-[10px] text-slate-500 uppercase block mb-1">Custom Background URL</label>
-                <input 
-                  type="text" 
-                  value={bgImage} 
-                  onChange={(e) => setBgImage(e.target.value)} 
-                  placeholder="https://example.com/my-bg.gif"
-                  className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"
-                />
-                <p className="text-[9px] text-slate-600 mt-1">Supports GIFs. Leave empty for default theme.</p>
+                <input type="text" value={bgImage} onChange={(e) => setBgImage(e.target.value)} placeholder="https://example.com/my-bg.gif" className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none"/>
              </div>
-
-             {/* Only show Theme options if no custom background is set */}
              {!bgImage && (
                <>
                  <div>
@@ -256,22 +388,19 @@ export default function Home() {
           </div>
         </div>
 
-        {/* CANVAS */}
         <div className="flex-1 bg-black relative overflow-auto flex justify-center p-10 cursor-grab active:cursor-grabbing">
            <div 
               ref={canvasRef}
-              className="bg-slate-900 shadow-2xl relative transition-all duration-300 ease-out origin-top"
+              className="bg-slate-900 shadow-2xl relative transition-all duration-300 ease-out origin-top flex-shrink-0"
               style={{ 
                 width: '1000px', 
-                height: `${(canvasHeight / 1400) * 1000}px`, 
-                // Show custom background in editor preview if set, otherwise use pattern
+                height: `${(canvasHeight / canvasWidth) * 1000}px`, 
                 backgroundImage: bgImage ? `url(${bgImage})` : 'radial-gradient(#1e293b 1px, transparent 1px)', 
                 backgroundSize: bgImage ? 'cover' : '20px 20px',
                 backgroundPosition: 'center',
                 boxShadow: '0 0 100px rgba(0,0,0,0.5)'
               }}
            >
-              {/* Background Hint (Only if no custom BG) */}
               {!bgImage && (
                 <div className="absolute inset-0 overflow-hidden opacity-50 pointer-events-none">
                    <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full blur-[60px] opacity-60" style={{ background: theme === 'custom' ? customFrom : 'blue' }}></div>
@@ -285,11 +414,15 @@ export default function Home() {
                     onMouseDown={(e) => handleMouseDown(e, el.id)}
                     className={`absolute whitespace-nowrap select-none group hover:scale-[1.01] transition-transform ${selectedId === el.id ? 'z-50' : 'z-10'}`}
                     style={{
-                       left: `${(el.x / 1400) * 100}%`,
+                       // FIX: Use Conditional Positioning Logic
+                       left: `${(el.x / canvasWidth) * 100}%`,
                        top: `${(el.y / canvasHeight) * 100}%`,
-                       transform: 'translate(-50%, -50%)',
+                       
+                       // FIX: Images are now Top-Left, Text is Center
+                       transform: el.type === 'text' ? 'translate(-50%, -50%)' : 'none',
+                       
                        color: el.color,
-                       fontSize: el.type === 'text' ? `${((el.size || 24) / 1400) * 1000}px` : undefined,
+                       fontSize: el.type === 'text' ? `${((el.size || 24) / canvasWidth) * 1000}px` : undefined,
                        fontWeight: el.bold ? 'bold' : 'normal',
                        textDecoration: el.underline ? 'underline' : 'none',
                        fontFamily: 'system-ui, sans-serif',
@@ -300,10 +433,11 @@ export default function Home() {
                       <img 
                         src={el.src} 
                         alt="marker" 
+                        className="max-w-none" // FIX: Prevent image shrinking near edges
                         style={{ 
-                          width: `${((el.width || 100) / 1400) * 1000}px`,
-                          height: `${((el.height || 20) / 1400) * 1000}px`,
-                          objectFit: 'contain' // Ensure markers don't distort
+                          width: `${((el.width || 100) / canvasWidth) * 1000}px`,
+                          height: `${((el.height || 20) / canvasWidth) * 1000}px`,
+                          objectFit: (el.fit === 'stretch' ? 'fill' : (el.fit || 'contain'))
                         }} 
                       />
                     )}

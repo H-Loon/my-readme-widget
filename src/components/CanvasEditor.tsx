@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Stage, Layer, Text, Image as KonvaImage, Transformer, Group, Rect } from 'react-konva';
+import { Stage, Layer, Text, Image as KonvaImage, Transformer, Group, Rect, Line } from 'react-konva';
 import useImage from 'use-image';
+
+const GRID_SIZE = 20;
 
 interface GradientStop {
   offset: number;
@@ -56,9 +58,10 @@ interface CanvasEditorProps {
   customFrom?: string;
   customTo?: string;
   blobCount?: number;
+  showGrid?: boolean;
 }
 
-const URLImage = ({ src, element, isSelected, onSelect, onChange }: any) => {
+const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid }: any) => {
   // Fix for github-readme-stats to ensure it renders in Canvas
   // We use a proxy to fetch the image and avoid CORS/Canvas tainting issues
   // and to ensure the SVG is served with correct headers
@@ -88,6 +91,13 @@ const URLImage = ({ src, element, isSelected, onSelect, onChange }: any) => {
         height={element.height}
         rotation={element.rotation || 0}
         draggable
+        dragBoundFunc={(pos) => {
+            if (!showGrid) return pos;
+            return {
+                x: Math.round(pos.x / GRID_SIZE) * GRID_SIZE,
+                y: Math.round(pos.y / GRID_SIZE) * GRID_SIZE
+            };
+        }}
         onClick={() => onSelect(element.id)}
         onTap={() => onSelect(element.id)}
         onDragEnd={(e) => {
@@ -131,7 +141,7 @@ const URLImage = ({ src, element, isSelected, onSelect, onChange }: any) => {
   );
 };
 
-const EditableText = ({ element, isSelected, onSelect, onChange }: any) => {
+const EditableText = ({ element, isSelected, onSelect, onChange, showGrid }: any) => {
   const shapeRef = useRef<any>(null);
   const trRef = useRef<any>(null);
   const [dimensions, setDimensions] = React.useState({ width: 0, height: 0 });
@@ -233,6 +243,13 @@ const EditableText = ({ element, isSelected, onSelect, onChange }: any) => {
         {...fillProps}
         {...shadowProps}
         draggable
+        dragBoundFunc={(pos) => {
+            if (!showGrid) return pos;
+            return {
+                x: Math.round(pos.x / GRID_SIZE) * GRID_SIZE,
+                y: Math.round(pos.y / GRID_SIZE) * GRID_SIZE
+            };
+        }}
         rotation={element.rotation || 0}
         onClick={() => onSelect(element.id)}
         onTap={() => onSelect(element.id)}
@@ -339,7 +356,34 @@ const BackgroundLayer = ({ width, height, bgImage, bgFit, theme, customFrom, cus
     );
 };
 
-export default function CanvasEditor({ width, height, elements, selectedId, onSelect, onChange, bgImage, bgFit, theme, customFrom, customTo, blobCount }: CanvasEditorProps) {
+const GridLayer = ({ width, height }: { width: number; height: number }) => {
+    const lines = [];
+    // Vertical lines
+    for (let i = 0; i <= width; i += GRID_SIZE) {
+        lines.push(
+            <Line
+                key={`v-${i}`}
+                points={[i, 0, i, height]}
+                stroke="rgba(255, 255, 255, 0.1)"
+                strokeWidth={1}
+            />
+        );
+    }
+    // Horizontal lines
+    for (let i = 0; i <= height; i += GRID_SIZE) {
+        lines.push(
+            <Line
+                key={`h-${i}`}
+                points={[0, i, width, i]}
+                stroke="rgba(255, 255, 255, 0.1)"
+                strokeWidth={1}
+            />
+        );
+    }
+    return <Group>{lines}</Group>;
+};
+
+export default function CanvasEditor({ width, height, elements, selectedId, onSelect, onChange, bgImage, bgFit, theme, customFrom, customTo, blobCount, showGrid }: CanvasEditorProps) {
   
   const handleElementChange = (newAttrs: any) => {
     const newElements = elements.map(el => {
@@ -373,6 +417,7 @@ export default function CanvasEditor({ width, height, elements, selectedId, onSe
                 customTo={customTo} 
                 blobCount={blobCount}
             />
+            {showGrid && <GridLayer width={width} height={height} />}
         </Layer>
         <Layer>
           {elements.map((el) => {
@@ -385,6 +430,7 @@ export default function CanvasEditor({ width, height, elements, selectedId, onSe
                   isSelected={el.id === selectedId}
                   onSelect={onSelect}
                   onChange={handleElementChange}
+                  showGrid={showGrid}
                 />
               );
             }
@@ -395,6 +441,7 @@ export default function CanvasEditor({ width, height, elements, selectedId, onSe
                 isSelected={el.id === selectedId}
                 onSelect={onSelect}
                 onChange={handleElementChange}
+                showGrid={showGrid}
               />
             );
           })}

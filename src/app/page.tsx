@@ -29,7 +29,8 @@ const Icons = {
   Pencil: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>,
   Undo: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>,
   Redo: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>,
-  Swap: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+  Swap: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>,
+  Grid: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
 };
 
 const Switch = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
@@ -169,6 +170,7 @@ export default function Home() {
   const [canvasWidth, setCanvasWidth] = useState(1400);
   const [canvasHeight, setCanvasHeight] = useState(600);
   const [widgetName, setWidgetName] = useState('Untitled Widget');
+  const [showGrid, setShowGrid] = useState(false);
 
   const [savedWidgets, setSavedWidgets] = useState<any[]>([]);
 
@@ -794,7 +796,16 @@ export default function Home() {
 
           {/* Dimensions */}
           <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Canvas Size</h3>
+            <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Canvas Size</h3>
+                <button 
+                    onClick={() => setShowGrid(!showGrid)}
+                    className={`p-1 rounded transition-colors ${showGrid ? 'bg-blue-500/20 text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    title="Toggle Grid Snapping"
+                >
+                    <Icons.Grid size={16} />
+                </button>
+            </div>
             <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                     <label className="text-xs text-slate-500">Width</label>
@@ -1152,6 +1163,7 @@ export default function Home() {
                         customFrom={customFrom}
                         customTo={customTo}
                         blobCount={blobCount}
+                        showGrid={showGrid}
                     />
                 </div>
             </div>

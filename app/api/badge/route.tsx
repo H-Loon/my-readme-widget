@@ -5,11 +5,12 @@ export async function GET(request: Request) {
   
   const rawData = searchParams.get('data');
   const dynamicHeight = parseInt(searchParams.get('h') || '600');
+  const dynamicWidth = parseInt(searchParams.get('w') || '1400');
   const customBgUrl = searchParams.get('bg');
   
   let elements = [
-    { type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, size: 48, color: "#334155", bold: true, align: "middle" },
-    { type: 'text', text: "Building things for the web", x: 700, y: 260, size: 24, color: "#64748b", bold: false, align: "middle" }
+    { type: 'text', text: "Hi, I'm Developer", x: dynamicWidth/2, y: 200, size: 48, color: "#334155", bold: true, align: "middle" },
+    { type: 'text', text: "Building things for the web", x: dynamicWidth/2, y: 260, size: 24, color: "#64748b", bold: false, align: "middle" }
   ];
 
   try {
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
   };
   const t = themes[theme] || themes.blue;
 
-  const width = 1400;
+  const width = dynamicWidth;
   const height = dynamicHeight;
 
   // --- HELPER: Fetch and Convert Image to Base64 ---
@@ -63,15 +64,19 @@ export async function GET(request: Request) {
 
   // --- ELEMENT RENDERING ---
   const renderedElements = await Promise.all(elements.map(async (el: any) => {
+    
+    // >> TEXT RENDERER
     if (el.type === 'text' || !el.type) {
       const fontWeight = el.bold ? 'bold' : 'normal';
       const textDecoration = el.underline ? 'underline' : 'none';
       const safeText = (el.text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       
+      // FIX: Added dominant-baseline="middle" so text aligns vertically exactly like the Editor
       return `
         <text 
           x="${el.x}" y="${el.y}" 
-          text-anchor="${el.align || 'start'}" 
+          text-anchor="${el.align || 'middle'}" 
+          dominant-baseline="middle"
           font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" 
           font-size="${el.size}" 
           font-weight="${fontWeight}" 
@@ -84,11 +89,9 @@ export async function GET(request: Request) {
       `;
     }
 
+    // >> IMAGE/MARKER RENDERER
     if (el.type === 'image') {
       let targetUrl = el.src;
-
-      // --- AUTO-FIX FOR GITHUB STATS ---
-      // Detects github-readme-stats and forces animations OFF so it renders immediately
       if (targetUrl.includes('github-readme-stats.vercel.app') && !targetUrl.includes('disable_animations')) {
          targetUrl += targetUrl.includes('?') ? '&disable_animations=true' : '?disable_animations=true';
       }
@@ -96,16 +99,23 @@ export async function GET(request: Request) {
       const dataUri = await fetchImageToBase64(targetUrl);
       if (!dataUri) return '';
 
-      let xOffset = -(el.width / 2);
-      let yOffset = -(el.height / 2);
+      // FIX: X/Y is Top-Left (No offset needed)
+      // Matches Editor logic: { left: el.x, top: el.y }
+      let xPos = el.x;
+      let yPos = el.y;
+      
+      let preserveRatio = "xMidYMid meet"; // Default contain
+      if (el.fit === 'cover') preserveRatio = "xMidYMid slice";
+      if (el.fit === 'stretch') preserveRatio = "none";
 
       return `
         <image 
           href="${dataUri}" 
-          x="${el.x + xOffset}" 
-          y="${el.y + yOffset}" 
+          x="${xPos}" 
+          y="${yPos}" 
           width="${el.width}" 
           height="${el.height}" 
+          preserveAspectRatio="${preserveRatio}"
         />
       `;
     }

@@ -171,6 +171,9 @@ export async function GET(request: Request) {
       const lines = safeText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
       let textContent = '';
       
+      // Determine text-anchor based on alignment
+      const textAnchor = el.align || 'start';
+      
       if (lines.length === 1) {
           textContent = safeText;
       } else {
@@ -179,6 +182,7 @@ export async function GET(request: Request) {
               const dy = i === 0 ? 0 : lineHeight;
               // Ensure empty lines render by adding a zero-width space
               const content = line === '' ? '&#8203;' : line;
+              // For multi-line text, we need to reset x to 0 for each line so they align correctly relative to the anchor
               return `<tspan x="0" dy="${dy}em">${content}</tspan>`;
           }).join('');
       }
@@ -188,7 +192,7 @@ export async function GET(request: Request) {
         <g transform="translate(${el.x}, ${el.y}) rotate(${el.rotation || 0})">
             <text 
             x="0" y="0" 
-            text-anchor="start" 
+            text-anchor="${textAnchor}" 
             dominant-baseline="text-before-edge"
             font-family="${fontFamily}" 
             font-size="${el.size}" 
@@ -197,6 +201,7 @@ export async function GET(request: Request) {
             fill="${fill}"
             text-decoration="${textDecoration}"
             style="text-decoration: ${textDecoration}; ${shadowStyle}"
+            xml:space="preserve"
             >
             ${textContent}
             </text>

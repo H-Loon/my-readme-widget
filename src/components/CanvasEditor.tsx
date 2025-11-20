@@ -239,6 +239,14 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid }: any
       };
   }
 
+  // Calculate offset based on alignment to simulate text-anchor behavior
+  let offsetX = 0;
+  if (element.align === 'middle') {
+      offsetX = dimensions.width / 2;
+  } else if (element.align === 'end') {
+      offsetX = dimensions.width;
+  }
+
   return (
     <>
       <Text
@@ -246,6 +254,8 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid }: any
         text={element.text}
         x={element.x}
         y={element.y}
+        offsetX={offsetX}
+        align={element.align === 'middle' ? 'center' : element.align === 'end' ? 'right' : 'left'}
         fontSize={element.size}
         fontFamily={element.fontFamily}
         fontStyle={`${element.bold ? 'bold' : ''} ${element.italic ? 'italic' : ''}`.trim() || 'normal'}

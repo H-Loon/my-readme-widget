@@ -30,7 +30,10 @@ const Icons = {
   Undo: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>,
   Redo: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>,
   Swap: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>,
-  Grid: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+  Grid: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>,
+  AlignLeft: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>,
+  AlignCenter: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>,
+  AlignRight: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
 };
 
 const Switch = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
@@ -948,6 +951,27 @@ export default function Home() {
                                 className={`flex-1 py-2 rounded-md border transition-all ${elements.find(el => el.id === selectedId)?.underline ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
                             >
                                 <Icons.Underline size={16} className="mx-auto" />
+                            </button>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => updateSelected('align', 'start')}
+                                className={`flex-1 py-2 rounded-md border transition-all ${elements.find(el => el.id === selectedId)?.align === 'start' ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
+                            >
+                                <Icons.AlignLeft size={16} className="mx-auto" />
+                            </button>
+                            <button 
+                                onClick={() => updateSelected('align', 'middle')}
+                                className={`flex-1 py-2 rounded-md border transition-all ${elements.find(el => el.id === selectedId)?.align === 'middle' ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
+                            >
+                                <Icons.AlignCenter size={16} className="mx-auto" />
+                            </button>
+                            <button 
+                                onClick={() => updateSelected('align', 'end')}
+                                className={`flex-1 py-2 rounded-md border transition-all ${elements.find(el => el.id === selectedId)?.align === 'end' ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
+                            >
+                                <Icons.AlignRight size={16} className="mx-auto" />
                             </button>
                         </div>
 

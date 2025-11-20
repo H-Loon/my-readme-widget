@@ -815,7 +815,7 @@ export default function Home() {
                 </button>
                 <button onClick={addImage} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-all border border-slate-700 hover:border-slate-600">
                     <Icons.Plus size={16} />
-                    <span className="text-sm font-medium">Image/Markdown</span>
+                    <span className="text-sm font-medium">Add Image/MD</span>
                 </button>
             </div>
           </div>

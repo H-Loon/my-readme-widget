@@ -26,6 +26,7 @@ export async function GET(request: Request) {
       
       if (docSnap.exists()) {
         const data = docSnap.data();
+        console.log(`Fetching widget ${id}:`, JSON.stringify(data));
         elements = data.elements || [];
         canvasWidth = data.width || 1400;
         canvasHeight = data.height || 600;
@@ -292,11 +293,17 @@ export async function GET(request: Request) {
 
   const svg = `
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" overflow="hidden">
+      <!-- Debug: id=${id}, bgFit=${bgFit} -->
       ${backgroundSvg}
       ${contentSvg}
     </svg>`;
 
   return new Response(svg, { 
-    headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-store, max-age=0' } 
+    headers: { 
+      'Content-Type': 'image/svg+xml', 
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    } 
   });
 }

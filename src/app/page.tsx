@@ -1129,25 +1129,27 @@ export default function Home() {
         </aside>
 
         {/* Main Canvas Area */}
-        <div className="flex-1 bg-slate-950 relative overflow-hidden flex items-center justify-center p-8">
-            <div className="relative shadow-2xl ring-1 ring-slate-800">
-                 <CanvasEditor 
-                    width={canvasWidth}
-                    height={canvasHeight}
-                    elements={elements}
-                    selectedId={selectedId}
-                    onSelect={setSelectedId}
-                    onChange={handleElementsChange}
-                    bgImage={bgImage}
-                    bgFit={bgFit}
-                    theme={theme}
-                    customFrom={customFrom}
-                    customTo={customTo}
-                    blobCount={blobCount}
-                 />
+        <div className="flex-1 bg-slate-950 relative overflow-auto custom-scrollbar">
+            <div className="min-h-full min-w-full flex items-center justify-center p-8">
+                <div className="relative shadow-2xl ring-1 ring-slate-800">
+                    <CanvasEditor 
+                        width={canvasWidth}
+                        height={canvasHeight}
+                        elements={elements}
+                        selectedId={selectedId}
+                        onSelect={setSelectedId}
+                        onChange={handleElementsChange}
+                        bgImage={bgImage}
+                        bgFit={bgFit}
+                        theme={theme}
+                        customFrom={customFrom}
+                        customTo={customTo}
+                        blobCount={blobCount}
+                    />
+                </div>
             </div>
             
-            <div className="absolute bottom-6 right-6 bg-slate-900/80 backdrop-blur px-4 py-2 rounded-full border border-slate-800 text-xs text-slate-500 pointer-events-none">
+            <div className="fixed bottom-6 right-6 bg-slate-900/80 backdrop-blur px-4 py-2 rounded-full border border-slate-800 text-xs text-slate-500 pointer-events-none z-10">
                 {Math.round(canvasWidth)} x {Math.round(canvasHeight)} px
             </div>
         </div>

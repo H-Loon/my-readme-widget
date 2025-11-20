@@ -168,6 +168,19 @@ export async function GET(request: Request) {
           shadowStyle = `text-shadow: ${el.shadowOffsetX || 0}px ${el.shadowOffsetY || 0}px ${el.shadowBlur || 0}px ${el.shadowColor};`;
       }
 
+      const lines = safeText.split('\n');
+      let textContent = '';
+      
+      if (lines.length === 1) {
+          textContent = safeText;
+      } else {
+          const lineHeight = 1.2; // em
+          textContent = lines.map((line: string, i: number) => {
+              const dy = i === 0 ? 0 : lineHeight;
+              return `<tspan x="0" dy="${dy}em">${line}</tspan>`;
+          }).join('');
+      }
+
       return `
         ${defs}
         <g transform="translate(${el.x}, ${el.y}) rotate(${el.rotation || 0})">
@@ -183,7 +196,7 @@ export async function GET(request: Request) {
             text-decoration="${textDecoration}"
             style="text-decoration: ${textDecoration}; ${shadowStyle}"
             >
-            ${safeText}
+            ${textContent}
             </text>
         </g>
       `;

@@ -105,8 +105,14 @@ export default function Home() {
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    if (elements.length > 0) {
+       const lowestY = Math.max(...elements.map(e => e.y + (e.type === 'image' ? (e.height || 0)/2 : 0)));
+       if (lowestY + 150 > canvasHeight) {
+         setCanvasHeight(Math.round(lowestY + 150));
+       }
+    }
   };
-  
+
   const fitCanvasToContent = () => {
     if (elements.length > 0) {
        const lowestY = Math.max(...elements.map(e => e.y + (e.type === 'image' ? (e.height || 0)/2 : 0)));
@@ -120,16 +126,57 @@ export default function Home() {
     setSelectedId(newId);
   };
 
+  // FIX: Detect real dimensions when adding or updating images
+  const resolveImageDimensions = (src: string, id: string) => {
+    const img = new Image();
+    img.onload = () => {
+      // Default max width to prevent huge images exploding the canvas
+      const maxW = 250; 
+      const ratio = img.width / img.height;
+      
+      let newW = img.width;
+      let newH = img.height;
+
+      // Scale down if too huge initially
+      if (newW > maxW) {
+        newW = maxW;
+        newH = maxW / ratio;
+      }
+
+      setElements(prev => prev.map(el => {
+        if (el.id === id) {
+          return { 
+            ...el, 
+            width: Math.round(newW), 
+            height: Math.round(newH),
+            scale: 1.0 
+          };
+        }
+        return el;
+      }));
+    };
+    img.src = src;
+  };
+
   const addImage = () => {
     const newId = Date.now().toString();
-    const startX = (canvasWidth / 2) - 60; 
+    const startX = (canvasWidth / 2) - 50; 
     const startY = (canvasHeight / 2) + 50;
-    setElements([...elements, { id: newId, type: 'image', src: "https://img.shields.io/badge/Badge-Example-blue", x: startX, y: startY, width: 120, height: 20, scale: 1.0, fit: 'contain' }]);
+    const defaultSrc = "https://img.shields.io/badge/Badge-Example-blue";
+    
+    // Start with placeholders, then resolve
+    setElements([...elements, { id: newId, type: 'image', src: defaultSrc, x: startX, y: startY, width: 100, height: 20, scale: 1.0, fit: 'contain' }]);
     setSelectedId(newId);
+    resolveImageDimensions(defaultSrc, newId);
   };
 
   const updateSelected = (key: keyof CanvasElement, value: any) => {
     setElements(prev => prev.map(el => el.id === selectedId ? { ...el, [key]: value } : el));
+    
+    // FIX: Resolve new dimensions if URL changes
+    if (key === 'src' && selectedId) {
+       resolveImageDimensions(value, selectedId);
+    }
   };
 
   const updateScale = (newScale: number) => {
@@ -147,13 +194,6 @@ export default function Home() {
       }
       return el;
     }));
-  };
-
-  const updateDimension = (key: 'width' | 'height', newVal: number) => {
-      setElements(prev => prev.map(el => {
-         if (el.id === selectedId) return { ...el, [key]: newVal };
-         return el;
-      }));
   };
 
   const deleteSelected = () => {
@@ -255,7 +295,6 @@ export default function Home() {
              <button onClick={fitCanvasToContent} title="Auto-fit Height" className="hover:text-white text-slate-400"><Icons.Fit size={14}/></button>
           </div>
           
-          {/* PREVIEW BUTTON */}
           <button onClick={handlePreview} className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 transition-all">
              <Icons.ExternalLink size={16} /> Preview
           </button>
@@ -331,17 +370,27 @@ export default function Home() {
                        </div>
                     </div>
                     
-                    {/* READ-ONLY DIMENSION DISPLAY */}
+                    {/* READ-ONLY DIMENSIONS */}
                     <div>
                        <label className="text-[10px] text-slate-500 uppercase block mb-1">Dimensions (Px)</label>
                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2 opacity-70 cursor-not-allowed">
+                          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2 opacity-50 cursor-not-allowed">
                              <span className="text-[10px] text-slate-500 mr-1">W:</span>
-                             <span className="text-xs text-white py-1">{selectedElement.width}</span>
+                             <input 
+                               type="number" 
+                               readOnly
+                               value={selectedElement.width} 
+                               className="w-full bg-transparent text-xs text-slate-400 py-1 outline-none cursor-not-allowed"
+                             />
                           </div>
-                          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2 opacity-70 cursor-not-allowed">
+                          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2 opacity-50 cursor-not-allowed">
                              <span className="text-[10px] text-slate-500 mr-1">H:</span>
-                             <span className="text-xs text-white py-1">{selectedElement.height}</span>
+                             <input 
+                               type="number" 
+                               readOnly
+                               value={selectedElement.height} 
+                               className="w-full bg-transparent text-xs text-slate-400 py-1 outline-none cursor-not-allowed"
+                             />
                           </div>
                        </div>
                     </div>
@@ -400,7 +449,6 @@ export default function Home() {
         </div>
 
         <div className="flex-1 bg-black relative overflow-auto flex justify-center p-10 cursor-grab active:cursor-grabbing">
-           {/* FIX: Added flex-shrink-0 to prevent canvas squishing on small screens */}
            <div 
               ref={canvasRef}
               className="bg-slate-900 shadow-2xl relative transition-all duration-300 ease-out origin-top flex-shrink-0"
@@ -426,11 +474,9 @@ export default function Home() {
                     onMouseDown={(e) => handleMouseDown(e, el.id)}
                     className={`absolute whitespace-nowrap select-none group hover:scale-[1.01] transition-transform ${selectedId === el.id ? 'z-50' : 'z-10'}`}
                     style={{
-                       // FIX: Use Conditional Positioning Logic
                        left: `${(el.x / canvasWidth) * 100}%`,
                        top: `${(el.y / canvasHeight) * 100}%`,
                        
-                       // FIX: Images are now Top-Left, Text is Center
                        transform: el.type === 'text' ? 'translate(-50%, -50%)' : 'none',
                        
                        color: el.color,
@@ -445,7 +491,7 @@ export default function Home() {
                       <img 
                         src={el.src} 
                         alt="marker" 
-                        className="max-w-none" // FIX: Prevent image shrinking near edges
+                        className="max-w-none" 
                         style={{ 
                           width: `${((el.width || 100) / canvasWidth) * 1000}px`,
                           height: `${((el.height || 20) / canvasWidth) * 1000}px`,

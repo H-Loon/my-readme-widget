@@ -16,8 +16,6 @@ export async function GET(request: Request) {
   let customTo = '';
   let customBgUrl = '';
   let bgFit = 'cover';
-  let debugStatus = 'init';
-  let debugError = '';
 
   const id = searchParams.get('id');
   
@@ -27,7 +25,6 @@ export async function GET(request: Request) {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        debugStatus = 'found';
         const data = docSnap.data();
         console.log(`Fetching widget ${id}:`, JSON.stringify(data));
         elements = data.elements || [];
@@ -40,12 +37,8 @@ export async function GET(request: Request) {
         customTo = data.customTo || '';
         customBgUrl = data.bgImage || '';
         bgFit = data.bgFit || 'cover';
-      } else {
-        debugStatus = 'not-found';
       }
-    } catch (error: any) {
-      debugStatus = 'error';
-      debugError = error.message || String(error);
+    } catch (error) {
       console.error("Error fetching from DB:", error);
     }
   } 
@@ -300,7 +293,7 @@ export async function GET(request: Request) {
 
   const svg = `
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" overflow="hidden">
-      <!-- Debug: id=${id}, status=${debugStatus}, error=${debugError}, bgFit=${bgFit} -->
+      <!-- Debug: id=${id}, bgFit=${bgFit} -->
       ${backgroundSvg}
       ${contentSvg}
     </svg>`;

@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617; /* slate-950 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b; /* slate-800 */
+  border-radius: 5px;
+  border: 2px solid #020617; /* slate-950 */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155; /* slate-700 */
+}
+
+/* Utility class for specific containers */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #334155; /* slate-700 */
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #475569; /* slate-600 */
+}
+
+/* Custom Range Slider */
+.custom-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.custom-range:focus {
+  outline: none;
+}
+
+/* Webkit (Chrome, Safari, Edge) */
+.custom-range::-webkit-slider-runnable-track {
+  background: #1e293b; /* slate-800 */
+  height: 6px;
+  border-radius: 3px;
+}
+
+.custom-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -5px; /* centers thumb on the 6px track */
+  background-color: #3b82f6; /* blue-500 */
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  border: 2px solid #0f172a; /* slate-900 ring */
+  box-shadow: 0 0 0 1px #1e293b; /* subtle outer ring */
+  transition: transform 0.1s ease;
+}
+
+.custom-range::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  background-color: #60a5fa; /* blue-400 */
+}
+
+/* Firefox */
+.custom-range::-moz-range-track {
+  background: #1e293b;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.custom-range::-moz-range-thumb {
+  border: none;
+  background-color: #3b82f6;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  border: 2px solid #0f172a;
+  box-shadow: 0 0 0 1px #1e293b;
+  transition: transform 0.1s ease;
+}
+
+.custom-range::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  background-color: #60a5fa;
+}

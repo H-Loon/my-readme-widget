@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'; 
 
-import { db } from '../../lib/firebase';
+import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 export async function GET(request: Request) {
@@ -15,6 +15,7 @@ export async function GET(request: Request) {
   let customFrom = '';
   let customTo = '';
   let customBgUrl = '';
+  let bgFit = 'cover';
 
   const id = searchParams.get('id');
   
@@ -34,6 +35,7 @@ export async function GET(request: Request) {
         customFrom = data.customFrom || '';
         customTo = data.customTo || '';
         customBgUrl = data.bgImage || '';
+        bgFit = data.bgFit || 'cover';
       }
     } catch (error) {
       console.error("Error fetching from DB:", error);
@@ -58,6 +60,7 @@ export async function GET(request: Request) {
      customFrom = searchParams.get('from') || '';
      customTo = searchParams.get('to') || '';
      customBgUrl = searchParams.get('bg') || '';
+     bgFit = searchParams.get('bgFit') || 'cover';
   }
   
   const width = canvasWidth;
@@ -94,27 +97,94 @@ export async function GET(request: Request) {
     }
   };
 
-  const renderedElements = await Promise.all(elements.map(async (el: any) => {
+  const renderedElements = await Promise.all(elements.map(async (el: any, index: number) => {
     if (el.type === 'text' || !el.type) {
       const fontWeight = el.bold ? 'bold' : 'normal';
+      const fontStyle = el.italic ? 'italic' : 'normal';
       const textDecoration = el.underline ? 'underline' : 'none';
       const safeText = (el.text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       
+      let fontFamily = el.fontFamily || 'sans-serif';
+      let fontImport = '';
+      
+      // Check if it's a Google Font (simple heuristic: starts with uppercase and not in standard list)
+      const standardFonts = ['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Trebuchet MS', 'Impact'];
+      if (!standardFonts.includes(fontFamily) && /^[A-Z]/.test(fontFamily)) {
+          // Attempt to import Google Font
+          // Note: This works in browsers but often not in <img> tags due to security/CORS
+          // However, it's the best we can do without embedding the font file (which is huge)
+          fontImport = `<style>@import url('https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, '+')}&display=swap');</style>`;
+      }
+      
+      if (fontFamily === 'sans-serif') fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+      else if (fontFamily === 'serif') fontFamily = "Georgia, 'Times New Roman', Times, serif";
+      else if (fontFamily === 'monospace') fontFamily = "'Courier New', Courier, monospace";
+      else if (fontFamily === 'cursive') fontFamily = "'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif";
+      else if (fontFamily === 'fantasy') fontFamily = "Impact, fantasy";
+
+      let fill = el.color;
+      let defs = fontImport ? `<defs>${fontImport}</defs>` : '';
+      
+      if (el.gradient?.enabled && el.gradient.stops && el.gradient.stops.length > 0) {
+         const gradId = `grad_${index}`;
+         const angle = el.gradient.angle || 90;
+         
+         // Use stored dimensions if available, otherwise estimate
+         const w = el.width || (safeText.length * el.size * 0.6) || 100;
+         const h = el.height || el.size || 20;
+         
+         // Local center (relative to text origin 0,0)
+         const cx = w / 2;
+         const cy = h / 2;
+         
+         const rad = ((angle - 90) * Math.PI) / 180;
+         const r = Math.sqrt(w*w + h*h) / 2;
+         
+         const x1 = cx - r * Math.cos(rad);
+         const y1 = cy - r * Math.sin(rad);
+         const x2 = cx + r * Math.cos(rad);
+         const y2 = cy + r * Math.sin(rad);
+         
+         const sortedStops = [...el.gradient.stops].sort((a: any, b: any) => a.offset - b.offset);
+         const stops = sortedStops.map((s: any) => 
+            `<stop offset="${s.offset * 100}%" stop-color="${s.color}" />`
+         ).join('');
+
+         defs += `
+           <defs>
+             <linearGradient id="${gradId}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" gradientUnits="userSpaceOnUse">
+               ${stops}
+             </linearGradient>
+           </defs>
+         `;
+         fill = `url(#${gradId})`;
+      }
+
+      let shadowStyle = '';
+      if (el.neon?.enabled) {
+          shadowStyle = `text-shadow: 0 0 ${el.neon.intensity}px ${el.neon.color}, 0 0 ${el.neon.intensity * 2}px ${el.neon.color};`;
+      } else if (el.shadowColor && el.shadowColor !== 'transparent') {
+          shadowStyle = `text-shadow: ${el.shadowOffsetX || 0}px ${el.shadowOffsetY || 0}px ${el.shadowBlur || 0}px ${el.shadowColor};`;
+      }
+
       return `
-        <text 
-          x="${el.x}" y="${el.y}" 
-          dy=".3em"
-          text-anchor="${el.align || 'middle'}" 
-          dominant-baseline="middle"
-          font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" 
-          font-size="${el.size}" 
-          font-weight="${fontWeight}" 
-          fill="${el.color}"
-          text-decoration="${textDecoration}"
-          style="text-decoration: ${textDecoration}"
-        >
-          ${safeText}
-        </text>
+        ${defs}
+        <g transform="translate(${el.x}, ${el.y}) rotate(${el.rotation || 0})">
+            <text 
+            x="0" y="0" 
+            text-anchor="start" 
+            dominant-baseline="text-before-edge"
+            font-family="${fontFamily}" 
+            font-size="${el.size}" 
+            font-weight="${fontWeight}" 
+            font-style="${fontStyle}"
+            fill="${fill}"
+            text-decoration="${textDecoration}"
+            style="text-decoration: ${textDecoration}; ${shadowStyle}"
+            >
+            ${safeText}
+            </text>
+        </g>
       `;
     }
 
@@ -133,11 +203,15 @@ export async function GET(request: Request) {
       if (el.fit === 'cover') preserveRatio = "xMidYMid slice";
       if (el.fit === 'stretch') preserveRatio = "none";
 
+      const rotation = el.rotation || 0;
+      const transform = rotation ? `transform="rotate(${rotation}, ${xPos}, ${yPos})"` : '';
+
       return `
         <image 
           href="${dataUri}" 
           x="${xPos}" 
           y="${yPos}" 
+          ${transform}
           width="${el.width}" 
           height="${el.height}" 
           preserveAspectRatio="${preserveRatio}"
@@ -154,9 +228,12 @@ export async function GET(request: Request) {
   if (customBgUrl) {
     const bgDataUri = await fetchImageToBase64(customBgUrl);
     if (bgDataUri) {
+      let preserveRatio = "xMidYMid slice"; // cover
+      if (bgFit === 'contain') preserveRatio = "xMidYMid meet";
+      if (bgFit === 'stretch') preserveRatio = "none";
+
       backgroundSvg = `
-        <image href="${bgDataUri}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" />
-        <rect width="${width}" height="${height}" fill="black" opacity="0.3" />
+        <image href="${bgDataUri}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="${preserveRatio}" />
       `;
     }
   }

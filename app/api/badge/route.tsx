@@ -39,7 +39,6 @@ export async function GET(request: Request) {
   const width = dynamicWidth;
   const height = dynamicHeight;
 
-  // --- HELPER: Fetch and Convert Image to Base64 ---
   const fetchImageToBase64 = async (url: string) => {
     try {
       const imgRes = await fetch(url, {
@@ -62,19 +61,18 @@ export async function GET(request: Request) {
     }
   };
 
-  // --- ELEMENT RENDERING ---
   const renderedElements = await Promise.all(elements.map(async (el: any) => {
     
-    // >> TEXT RENDERER
     if (el.type === 'text' || !el.type) {
       const fontWeight = el.bold ? 'bold' : 'normal';
       const textDecoration = el.underline ? 'underline' : 'none';
       const safeText = (el.text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       
-      // Center Anchor Logic (matches Editor)
+      // FIX: Added dy=".3em" for precise vertical centering (matches HTML centering)
       return `
         <text 
           x="${el.x}" y="${el.y}" 
+          dy=".3em"
           text-anchor="${el.align || 'middle'}" 
           dominant-baseline="middle"
           font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" 
@@ -89,7 +87,6 @@ export async function GET(request: Request) {
       `;
     }
 
-    // >> IMAGE/MARKER RENDERER
     if (el.type === 'image') {
       let targetUrl = el.src;
       if (targetUrl.includes('github-readme-stats.vercel.app') && !targetUrl.includes('disable_animations')) {
@@ -99,10 +96,11 @@ export async function GET(request: Request) {
       const dataUri = await fetchImageToBase64(targetUrl);
       if (!dataUri) return '';
 
-      // Top-Left Anchor Logic (matches Editor)
+      // Images are Top-Left anchored
       let xPos = el.x;
       let yPos = el.y;
       
+      // Default to 'meet' (Contain) to prevent stretching
       let preserveRatio = "xMidYMid meet"; 
       if (el.fit === 'cover') preserveRatio = "xMidYMid slice";
       if (el.fit === 'stretch') preserveRatio = "none";
@@ -123,7 +121,6 @@ export async function GET(request: Request) {
 
   const contentSvg = renderedElements.join('');
 
-  // --- BACKGROUND LOGIC ---
   let backgroundSvg = '';
 
   if (customBgUrl) {
@@ -188,10 +185,9 @@ export async function GET(request: Request) {
     `;
   }
 
-  // FIX: Reverted to explicit pixel dimensions. 
-  // This forces the browser to respect the Aspect Ratio defined by width/height.
+  // FIX: Explicit pixel dimensions AND overflow="hidden" to strictly respect the W/H
   const svg = `
-    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" overflow="hidden">
       ${backgroundSvg}
       ${contentSvg}
     </svg>`;

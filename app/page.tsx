@@ -148,13 +148,6 @@ export default function Home() {
     }));
   };
 
-  const updateDimension = (key: 'width' | 'height', newVal: number) => {
-      setElements(prev => prev.map(el => {
-         if (el.id === selectedId) return { ...el, [key]: newVal };
-         return el;
-      }));
-  };
-
   const deleteSelected = () => {
     setElements(prev => prev.filter(el => el.id !== selectedId));
     setSelectedId(null);
@@ -162,14 +155,38 @@ export default function Home() {
 
   const fitToWidth = () => {
     setElements(prev => prev.map(el => {
-      if (el.id === selectedId) return { ...el, width: canvasWidth, x: 0 };
+      if (el.id === selectedId && el.type === 'image') {
+         const newWidth = canvasWidth;
+         const ratio = newWidth / (el.width || 1);
+         const newHeight = Math.round((el.height || 1) * ratio);
+         const newScale = (el.scale || 1) * ratio;
+         return { 
+            ...el, 
+            width: newWidth, 
+            height: newHeight, 
+            scale: newScale,
+            x: 0 // Top-Left Align
+         };
+      }
       return el;
     }));
   };
 
   const fitToHeight = () => {
     setElements(prev => prev.map(el => {
-      if (el.id === selectedId) return { ...el, height: canvasHeight, y: 0 };
+      if (el.id === selectedId && el.type === 'image') {
+         const newHeight = canvasHeight;
+         const ratio = newHeight / (el.height || 1);
+         const newWidth = Math.round((el.width || 1) * ratio);
+         const newScale = (el.scale || 1) * ratio;
+         return { 
+            ...el, 
+            height: newHeight, 
+            width: newWidth,
+            scale: newScale,
+            y: 0 // Top-Left Align
+         };
+      }
       return el;
     }));
   };
@@ -191,10 +208,9 @@ export default function Home() {
       await navigator.clipboard.writeText(text);
       setCopied(true);
     } catch (err) {
-      // Fallback for iframe restrictions
       const textarea = document.createElement('textarea');
       textarea.value = text;
-      textarea.style.position = 'fixed'; // Avoid scrolling to bottom
+      textarea.style.position = 'fixed';
       document.body.appendChild(textarea);
       textarea.select();
       try {
@@ -297,41 +313,18 @@ export default function Home() {
                        </div>
                     </div>
                     
+                    {/* READ-ONLY DIMENSION DISPLAY */}
                     <div>
                        <label className="text-[10px] text-slate-500 uppercase block mb-1">Dimensions (Px)</label>
                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2">
+                          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2 opacity-70 cursor-not-allowed">
                              <span className="text-[10px] text-slate-500 mr-1">W:</span>
-                             <input 
-                               type="number" 
-                               value={selectedElement.width} 
-                               onChange={(e) => updateDimension('width', parseInt(e.target.value))} 
-                               className="w-full bg-transparent text-xs text-white py-1 outline-none"
-                             />
+                             <span className="text-xs text-white py-1">{selectedElement.width}</span>
                           </div>
-                          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2">
+                          <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2 opacity-70 cursor-not-allowed">
                              <span className="text-[10px] text-slate-500 mr-1">H:</span>
-                             <input 
-                               type="number" 
-                               value={selectedElement.height} 
-                               onChange={(e) => updateDimension('height', parseInt(e.target.value))} 
-                               className="w-full bg-transparent text-xs text-white py-1 outline-none"
-                             />
+                             <span className="text-xs text-white py-1">{selectedElement.height}</span>
                           </div>
-                       </div>
-                       <div className="grid grid-cols-2 gap-2 mt-1">
-                          <input 
-                            type="range" min="20" max="4000" 
-                            value={selectedElement.width} 
-                            onChange={(e) => updateDimension('width', parseInt(e.target.value))} 
-                            className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"
-                          />
-                          <input 
-                            type="range" min="20" max="4000" 
-                            value={selectedElement.height} 
-                            onChange={(e) => updateDimension('height', parseInt(e.target.value))} 
-                            className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500"
-                          />
                        </div>
                     </div>
 
@@ -339,8 +332,8 @@ export default function Home() {
                        <div className="flex justify-between items-center mb-1">
                           <label className="text-[10px] text-slate-500 uppercase block">Fit Mode</label>
                           <div className="flex gap-1">
-                            <button onClick={fitToWidth} className="text-[8px] bg-slate-800 px-1.5 py-0.5 rounded text-green-400 hover:bg-slate-700 flex items-center gap-0.5" title="Fit to Width"><Icons.Max size={8}/> W</button>
-                            <button onClick={fitToHeight} className="text-[8px] bg-slate-800 px-1.5 py-0.5 rounded text-green-400 hover:bg-slate-700 flex items-center gap-0.5" title="Fit to Height"><Icons.Max size={8}/> H</button>
+                            <button onClick={fitToWidth} className="text-[8px] bg-slate-800 px-1.5 py-0.5 rounded text-green-400 hover:bg-slate-700 flex items-center gap-0.5" title="Fit to Width Prop"><Icons.Max size={8}/> W</button>
+                            <button onClick={fitToHeight} className="text-[8px] bg-slate-800 px-1.5 py-0.5 rounded text-green-400 hover:bg-slate-700 flex items-center gap-0.5" title="Fit to Height Prop"><Icons.Max size={8}/> H</button>
                           </div>
                        </div>
                        <div className="flex bg-slate-900 rounded border border-slate-800 p-1 gap-1">
@@ -389,6 +382,7 @@ export default function Home() {
         </div>
 
         <div className="flex-1 bg-black relative overflow-auto flex justify-center p-10 cursor-grab active:cursor-grabbing">
+           {/* FIX: Added flex-shrink-0 to prevent canvas squishing on small screens */}
            <div 
               ref={canvasRef}
               className="bg-slate-900 shadow-2xl relative transition-all duration-300 ease-out origin-top flex-shrink-0"

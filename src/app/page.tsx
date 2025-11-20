@@ -747,12 +747,19 @@ export default function Home() {
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
                         <label className="text-xs text-slate-500">Blob Count</label>
-                        <span className="text-xs text-slate-400">{blobCount}</span>
+                        <input 
+                            type="number" 
+                            min="1" 
+                            max="50" 
+                            value={blobCount} 
+                            onChange={(e) => setBlobCount(Math.max(1, Math.min(50, Number(e.target.value))))}
+                            className="w-12 bg-slate-900 border border-slate-800 rounded px-1 text-xs text-right text-slate-300 focus:border-blue-500 outline-none"
+                        />
                     </div>
                     <input 
                         type="range" 
                         min="1" 
-                        max="10" 
+                        max="50" 
                         value={blobCount} 
                         onChange={(e) => setBlobCount(Number(e.target.value))}
                         className="w-full custom-range"

@@ -32,7 +32,7 @@ export async function GET(request: Request) {
         canvasHeight = data.height || 600;
         theme = data.theme || 'blue';
         style = data.style || 'ethereal';
-        blobCount = data.blobCount || 5;
+        blobCount = Math.min(50, data.blobCount || 5);
         customFrom = data.customFrom || '';
         customTo = data.customTo || '';
         customBgUrl = data.bgImage || '';
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
      canvasWidth = parseInt(searchParams.get('w') || '1400');
      style = searchParams.get('style') || 'ethereal';
      theme = searchParams.get('theme') || 'blue';
-     blobCount = parseInt(searchParams.get('blobs') || '5');
+     blobCount = Math.min(50, parseInt(searchParams.get('blobs') || '5'));
      customFrom = searchParams.get('from') || '';
      customTo = searchParams.get('to') || '';
      customBgUrl = searchParams.get('bg') || '';
@@ -168,7 +168,7 @@ export async function GET(request: Request) {
           shadowStyle = `text-shadow: ${el.shadowOffsetX || 0}px ${el.shadowOffsetY || 0}px ${el.shadowBlur || 0}px ${el.shadowColor};`;
       }
 
-      const lines = safeText.split('\n');
+      const lines = safeText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
       let textContent = '';
       
       if (lines.length === 1) {
@@ -177,7 +177,9 @@ export async function GET(request: Request) {
           const lineHeight = 1.2; // em
           textContent = lines.map((line: string, i: number) => {
               const dy = i === 0 ? 0 : lineHeight;
-              return `<tspan x="0" dy="${dy}em">${line}</tspan>`;
+              // Ensure empty lines render by adding a zero-width space
+              const content = line === '' ? '&#8203;' : line;
+              return `<tspan x="0" dy="${dy}em">${content}</tspan>`;
           }).join('');
       }
 
@@ -256,8 +258,8 @@ export async function GET(request: Request) {
     const padding = 250;
     const minX = padding;
     const maxX = width - padding;
-    const minY = padding;
-    const maxY = height - padding;
+    const minY = 150;
+    const maxY = height - 250;
     const segmentWidth = (maxX - minX) / blobCount;
 
     const blobCode = Array.from({ length: blobCount }).map((_, i) => {

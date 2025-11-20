@@ -62,12 +62,22 @@ interface CanvasEditorProps {
 }
 
 const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid }: any) => {
-  // Fix for github-readme-stats to ensure it renders in Canvas
+  // Fix for github-readme-stats and skillicons to ensure they render in Canvas
   // We use a proxy to fetch the image and avoid CORS/Canvas tainting issues
   // and to ensure the SVG is served with correct headers
-  const imageSrc = (src && src.includes('github-readme-stats.vercel.app'))
-    ? `/api/proxy-image?url=${encodeURIComponent(src + (src.includes('?') ? '&disable_animations=true' : '?disable_animations=true'))}`
-    : src;
+  const shouldUseProxy = src && (
+    src.includes('github-readme-stats.vercel.app') || 
+    src.includes('skillicons.dev')
+  );
+
+  let imageSrc = src;
+  if (shouldUseProxy) {
+      let urlToProxy = src;
+      if (src.includes('github-readme-stats.vercel.app') && !src.includes('disable_animations')) {
+          urlToProxy = src + (src.includes('?') ? '&disable_animations=true' : '?disable_animations=true');
+      }
+      imageSrc = `/api/proxy-image?url=${encodeURIComponent(urlToProxy)}`;
+  }
 
   const [image] = useImage(imageSrc, 'anonymous');
   const shapeRef = useRef<any>(null);

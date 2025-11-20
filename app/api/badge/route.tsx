@@ -1,31 +1,71 @@
-export const runtime = 'edge';
+// Use Node runtime for better Firebase compatibility
+export const dynamic = 'force-dynamic'; 
+
+import { db } from '../../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   
-  const rawData = searchParams.get('data');
-  const dynamicHeight = parseInt(searchParams.get('h') || '600');
-  const dynamicWidth = parseInt(searchParams.get('w') || '1400');
-  const customBgUrl = searchParams.get('bg');
+  let elements: any[] = [];
+  let canvasWidth = 1400;
+  let canvasHeight = 600;
+  let theme = 'blue';
+  let style = 'ethereal';
+  let blobCount = 5;
+  let customFrom = '';
+  let customTo = '';
+  let customBgUrl = '';
+
+  // 1. Try loading from Database (Short Link)
+  const id = searchParams.get('id');
   
-  let elements = [
-    { type: 'text', text: "Hi, I'm Developer", x: dynamicWidth/2, y: 200, size: 48, color: "#334155", bold: true, align: "middle" },
-    { type: 'text', text: "Building things for the web", x: dynamicWidth/2, y: 260, size: 24, color: "#64748b", bold: false, align: "middle" }
-  ];
-
-  try {
-    if (rawData) {
-      elements = JSON.parse(rawData);
+  if (id) {
+    try {
+      const docRef = doc(db, "widgets", id);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        elements = data.elements || [];
+        canvasWidth = data.width || 1400;
+        canvasHeight = data.height || 600;
+        theme = data.theme || 'blue';
+        style = data.style || 'ethereal';
+        blobCount = data.blobCount || 5;
+        customFrom = data.customFrom || '';
+        customTo = data.customTo || '';
+        customBgUrl = data.bgImage || '';
+      }
+    } catch (error) {
+      console.error("Error fetching from DB:", error);
     }
-  } catch (e) {
-    console.error("Failed to parse data");
+  } 
+  
+  // 2. Fallback to URL Params (if no ID or DB fail)
+  if (elements.length === 0) {
+     const rawData = searchParams.get('data');
+     if (rawData) {
+       try { elements = JSON.parse(rawData); } catch(e) {}
+     } else {
+       // Defaults
+       elements = [
+        { type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, size: 48, color: "#334155", bold: true, align: "middle" },
+        { type: 'text', text: "Building things for the web", x: 700, y: 260, size: 24, color: "#64748b", bold: false, align: "middle" }
+       ];
+     }
+     canvasHeight = parseInt(searchParams.get('h') || '600');
+     canvasWidth = parseInt(searchParams.get('w') || '1400');
+     style = searchParams.get('style') || 'ethereal';
+     theme = searchParams.get('theme') || 'blue';
+     blobCount = parseInt(searchParams.get('blobs') || '5');
+     customFrom = searchParams.get('from') || '';
+     customTo = searchParams.get('to') || '';
+     customBgUrl = searchParams.get('bg') || '';
   }
-
-  const style = searchParams.get('style') || 'ethereal';
-  const theme = searchParams.get('theme') || 'blue';
-  const blobCount = parseInt(searchParams.get('blobs') || '5') || 5;
-  const customFrom = searchParams.get('from');
-  const customTo = searchParams.get('to');
+  
+  const width = canvasWidth;
+  const height = canvasHeight;
 
   const themes: any = {
     blue: { from: '#2563eb', to: '#06b6d4', text: '#ffffff', bg: '#0f172a' },
@@ -35,9 +75,6 @@ export async function GET(request: Request) {
     custom: { from: customFrom || '#6366f1', to: customTo || '#ec4899', text: '#ffffff', bg: '#0f172a' }
   };
   const t = themes[theme] || themes.blue;
-
-  const width = dynamicWidth;
-  const height = dynamicHeight;
 
   const fetchImageToBase64 = async (url: string) => {
     try {
@@ -62,13 +99,11 @@ export async function GET(request: Request) {
   };
 
   const renderedElements = await Promise.all(elements.map(async (el: any) => {
-    
     if (el.type === 'text' || !el.type) {
       const fontWeight = el.bold ? 'bold' : 'normal';
       const textDecoration = el.underline ? 'underline' : 'none';
       const safeText = (el.text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       
-      // FIX: Added dy=".3em" for precise vertical centering (matches HTML centering)
       return `
         <text 
           x="${el.x}" y="${el.y}" 
@@ -96,11 +131,8 @@ export async function GET(request: Request) {
       const dataUri = await fetchImageToBase64(targetUrl);
       if (!dataUri) return '';
 
-      // Images are Top-Left anchored
       let xPos = el.x;
       let yPos = el.y;
-      
-      // Default to 'meet' (Contain) to prevent stretching
       let preserveRatio = "xMidYMid meet"; 
       if (el.fit === 'cover') preserveRatio = "xMidYMid slice";
       if (el.fit === 'stretch') preserveRatio = "none";
@@ -185,7 +217,6 @@ export async function GET(request: Request) {
     `;
   }
 
-  // FIX: Explicit pixel dimensions AND overflow="hidden" to strictly respect the W/H
   const svg = `
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" overflow="hidden">
       ${backgroundSvg}

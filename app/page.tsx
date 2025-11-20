@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { db, auth } from './lib/firebase';
+import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { collection, addDoc } from "firebase/firestore";
 
 // --- ICONS ---
 const Icons = {
@@ -16,7 +19,9 @@ const Icons = {
   Scale: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 3 9 15"/><path d="M12 3H3v18h18v-9"/><path d="M16 3h5v5"/><path d="M14 10l7-7"/></svg>,
   Max: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>,
   Fit: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>,
-  ExternalLink: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+  ExternalLink: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
+  Save: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
+  User: ({ size, className }: { size?: number; className?: string }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
 };
 
 interface CanvasElement {
@@ -38,6 +43,9 @@ interface CanvasElement {
 }
 
 export default function Home() {
+  const [user, setUser] = useState<any>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  
   const [theme, setTheme] = useState('blue');
   const [style, setStyle] = useState('ethereal');
   const [blobCount, setBlobCount] = useState(5);
@@ -61,7 +69,50 @@ export default function Home() {
 
   useEffect(() => {
     setOrigin(window.location.origin);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
   }, []);
+
+  const login = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      console.error(e);
+      alert("Login failed. Check your Firebase config.");
+    }
+  };
+
+  const logout = () => signOut(auth);
+
+  const saveWidget = async () => {
+    if (!user) return alert("Please log in to save.");
+    
+    try {
+      const widgetData = {
+        uid: user.uid,
+        createdAt: new Date(),
+        elements,
+        width: canvasWidth,
+        height: canvasHeight,
+        theme,
+        style,
+        blobCount,
+        customFrom,
+        customTo,
+        bgImage
+      };
+      
+      const docRef = await addDoc(collection(db, "widgets"), widgetData);
+      setSavedId(docRef.id);
+      alert("Saved! Short link generated.");
+    } catch (e) {
+      console.error("Error saving document: ", e);
+      alert("Error saving. Check console.");
+    }
+  };
 
   const handleMouseDown = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -105,14 +156,8 @@ export default function Home() {
 
   const handleMouseUp = () => {
     setIsDragging(false);
-    if (elements.length > 0) {
-       const lowestY = Math.max(...elements.map(e => e.y + (e.type === 'image' ? (e.height || 0)/2 : 0)));
-       if (lowestY + 150 > canvasHeight) {
-         setCanvasHeight(Math.round(lowestY + 150));
-       }
-    }
   };
-
+  
   const fitCanvasToContent = () => {
     if (elements.length > 0) {
        const lowestY = Math.max(...elements.map(e => e.y + (e.type === 'image' ? (e.height || 0)/2 : 0)));
@@ -126,18 +171,15 @@ export default function Home() {
     setSelectedId(newId);
   };
 
-  // FIX: Detect real dimensions when adding or updating images
   const resolveImageDimensions = (src: string, id: string) => {
     const img = new Image();
     img.onload = () => {
-      // Default max width to prevent huge images exploding the canvas
       const maxW = 250; 
       const ratio = img.width / img.height;
       
       let newW = img.width;
       let newH = img.height;
 
-      // Scale down if too huge initially
       if (newW > maxW) {
         newW = maxW;
         newH = maxW / ratio;
@@ -164,8 +206,7 @@ export default function Home() {
     const startY = (canvasHeight / 2) + 50;
     const defaultSrc = "https://img.shields.io/badge/Badge-Example-blue";
     
-    // Start with placeholders, then resolve
-    setElements([...elements, { id: newId, type: 'image', src: defaultSrc, x: startX, y: startY, width: 100, height: 20, scale: 1.0, fit: 'contain' }]);
+    setElements([...elements, { id: newId, type: 'image', src: defaultSrc, x: startX, y: startY, width: 100, height: 100, scale: 1.0, fit: 'contain' }]);
     setSelectedId(newId);
     resolveImageDimensions(defaultSrc, newId);
   };
@@ -173,7 +214,6 @@ export default function Home() {
   const updateSelected = (key: keyof CanvasElement, value: any) => {
     setElements(prev => prev.map(el => el.id === selectedId ? { ...el, [key]: value } : el));
     
-    // FIX: Resolve new dimensions if URL changes
     if (key === 'src' && selectedId) {
        resolveImageDimensions(value, selectedId);
     }
@@ -240,6 +280,10 @@ export default function Home() {
   };
 
   const getApiUrl = () => {
+    if (savedId) {
+      return `${origin}/api/badge?id=${savedId}`;
+    }
+
     const minifiedElements = elements.map(({ id, scale, ...rest }) => rest);
     const jsonString = JSON.stringify(minifiedElements);
     let url = `${origin}/api/badge?data=${encodeURIComponent(jsonString)}&h=${canvasHeight}&w=${canvasWidth}&theme=${theme}&style=${style}`;
@@ -295,6 +339,15 @@ export default function Home() {
              <button onClick={fitCanvasToContent} title="Auto-fit Height" className="hover:text-white text-slate-400"><Icons.Fit size={14}/></button>
           </div>
           
+          {user ? (
+             <div className="flex items-center gap-2">
+                <button onClick={saveWidget} className="px-3 py-1.5 rounded bg-green-600 hover:bg-green-500 text-xs font-medium flex items-center gap-1"><Icons.Save size={14}/> Save</button>
+                <button onClick={logout} className="px-2 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-400">Sign Out</button>
+             </div>
+          ) : (
+             <button onClick={login} className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-xs font-medium flex items-center gap-1"><Icons.User size={14}/> Login to Save</button>
+          )}
+
           <button onClick={handlePreview} className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 transition-all">
              <Icons.ExternalLink size={16} /> Preview
           </button>
@@ -370,27 +423,16 @@ export default function Home() {
                        </div>
                     </div>
                     
-                    {/* READ-ONLY DIMENSIONS */}
                     <div>
                        <label className="text-[10px] text-slate-500 uppercase block mb-1">Dimensions (Px)</label>
                        <div className="grid grid-cols-2 gap-2">
                           <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2 opacity-50 cursor-not-allowed">
                              <span className="text-[10px] text-slate-500 mr-1">W:</span>
-                             <input 
-                               type="number" 
-                               readOnly
-                               value={selectedElement.width} 
-                               className="w-full bg-transparent text-xs text-slate-400 py-1 outline-none cursor-not-allowed"
-                             />
+                             <input type="number" readOnly value={selectedElement.width} className="w-full bg-transparent text-xs text-slate-400 py-1 outline-none cursor-not-allowed"/>
                           </div>
                           <div className="flex items-center bg-slate-900 border border-slate-800 rounded px-2 opacity-50 cursor-not-allowed">
                              <span className="text-[10px] text-slate-500 mr-1">H:</span>
-                             <input 
-                               type="number" 
-                               readOnly
-                               value={selectedElement.height} 
-                               className="w-full bg-transparent text-xs text-slate-400 py-1 outline-none cursor-not-allowed"
-                             />
+                             <input type="number" readOnly value={selectedElement.height} className="w-full bg-transparent text-xs text-slate-400 py-1 outline-none cursor-not-allowed"/>
                           </div>
                        </div>
                     </div>
@@ -476,9 +518,7 @@ export default function Home() {
                     style={{
                        left: `${(el.x / canvasWidth) * 100}%`,
                        top: `${(el.y / canvasHeight) * 100}%`,
-                       
                        transform: el.type === 'text' ? 'translate(-50%, -50%)' : 'none',
-                       
                        color: el.color,
                        fontSize: el.type === 'text' ? `${((el.size || 24) / canvasWidth) * 1000}px` : undefined,
                        fontWeight: el.bold ? 'bold' : 'normal',
@@ -499,7 +539,6 @@ export default function Home() {
                         }} 
                       />
                     )}
-                    
                     {selectedId === el.id && (
                        <div className="absolute -inset-3 border-2 border-dashed border-purple-500 rounded opacity-50 pointer-events-none animate-pulse">
                           <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[10px] px-2 rounded py-0.5 whitespace-nowrap">

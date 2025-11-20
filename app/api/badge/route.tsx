@@ -1,4 +1,3 @@
-// Use Node runtime for better Firebase compatibility
 export const dynamic = 'force-dynamic'; 
 
 import { db } from '../../lib/firebase';
@@ -17,7 +16,6 @@ export async function GET(request: Request) {
   let customTo = '';
   let customBgUrl = '';
 
-  // 1. Try loading from Database (Short Link)
   const id = searchParams.get('id');
   
   if (id) {
@@ -42,13 +40,11 @@ export async function GET(request: Request) {
     }
   } 
   
-  // 2. Fallback to URL Params (if no ID or DB fail)
   if (elements.length === 0) {
      const rawData = searchParams.get('data');
      if (rawData) {
        try { elements = JSON.parse(rawData); } catch(e) {}
      } else {
-       // Defaults
        elements = [
         { type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, size: 48, color: "#334155", bold: true, align: "middle" },
         { type: 'text', text: "Building things for the web", x: 700, y: 260, size: 24, color: "#64748b", bold: false, align: "middle" }

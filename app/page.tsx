@@ -61,19 +61,21 @@ export default function Home() {
   ]);
   const [selectedId, setSelectedId] = useState<string | null>('1');
   
-  const [origin, setOrigin] = useState('');
   const [copied, setCopied] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setOrigin(window.location.origin);
+    setIsMounted(true);
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
     return () => unsubscribe();
   }, []);
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
   const login = async () => {
     try {
@@ -89,7 +91,6 @@ export default function Home() {
 
   const saveWidget = async () => {
     if (!user) return alert("Please log in to save.");
-    
     try {
       const widgetData = {
         uid: user.uid,
@@ -104,7 +105,6 @@ export default function Home() {
         customTo,
         bgImage
       };
-      
       const docRef = await addDoc(collection(db, "widgets"), widgetData);
       setSavedId(docRef.id);
       alert("Saved! Short link generated.");
@@ -176,7 +176,6 @@ export default function Home() {
     img.onload = () => {
       const maxW = 250; 
       const ratio = img.width / img.height;
-      
       let newW = img.width;
       let newH = img.height;
 
@@ -213,7 +212,6 @@ export default function Home() {
 
   const updateSelected = (key: keyof CanvasElement, value: any) => {
     setElements(prev => prev.map(el => el.id === selectedId ? { ...el, [key]: value } : el));
-    
     if (key === 'src' && selectedId) {
        resolveImageDimensions(value, selectedId);
     }
@@ -253,7 +251,7 @@ export default function Home() {
             width: newWidth, 
             height: newHeight, 
             scale: newScale,
-            x: 0 // Top-Left Align
+            x: 0 
          };
       }
       return el;
@@ -272,7 +270,7 @@ export default function Home() {
             height: newHeight, 
             width: newWidth,
             scale: newScale,
-            y: 0 // Top-Left Align
+            y: 0 
          };
       }
       return el;
@@ -283,7 +281,6 @@ export default function Home() {
     if (savedId) {
       return `${origin}/api/badge?id=${savedId}`;
     }
-
     const minifiedElements = elements.map(({ id, scale, ...rest }) => rest);
     const jsonString = JSON.stringify(minifiedElements);
     let url = `${origin}/api/badge?data=${encodeURIComponent(jsonString)}&h=${canvasHeight}&w=${canvasWidth}&theme=${theme}&style=${style}`;
@@ -294,12 +291,13 @@ export default function Home() {
   };
 
   const handlePreview = () => {
+    // Don't open a new tab if we're not mounted on the client yet
+    if (!isMounted) return;
     window.open(getApiUrl(), '_blank');
   };
 
   const handleCopy = async () => {
     const text = `![Widget](${getApiUrl()})`;
-    
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -312,12 +310,9 @@ export default function Home() {
       try {
         document.execCommand('copy');
         setCopied(true);
-      } catch (e) {
-        console.error('Copy failed', e);
-      }
+      } catch (e) {}
       document.body.removeChild(textarea);
     }
-    
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -325,6 +320,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white font-sans selection:bg-purple-500/30 flex flex-col" onMouseUp={handleMouseUp} onMouseMove={handleMouseMove}>
+      {/* Prevent hydration mismatch by not rendering the main content until mounted on the client */}
+      {!isMounted && (
+        <div className="flex-1 flex items-center justify-center text-slate-500">Loading Editor...</div>
+      )}
+      {isMounted && <>
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md h-16 flex items-center px-6 justify-between shrink-0 z-50">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-purple-600 rounded-lg"><Icons.Github className="w-5 h-5 text-white" /></div>
@@ -423,6 +423,7 @@ export default function Home() {
                        </div>
                     </div>
                     
+                    {/* READ-ONLY DIMENSIONS */}
                     <div>
                        <label className="text-[10px] text-slate-500 uppercase block mb-1">Dimensions (Px)</label>
                        <div className="grid grid-cols-2 gap-2">
@@ -551,6 +552,8 @@ export default function Home() {
            </div>
         </div>
       </main>
+      </>
+      }
     </div>
   );
 }

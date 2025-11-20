@@ -71,7 +71,7 @@ export async function GET(request: Request) {
       const textDecoration = el.underline ? 'underline' : 'none';
       const safeText = (el.text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       
-      // FIX: Added dominant-baseline="middle" so text aligns vertically exactly like the Editor
+      // Center Anchor Logic (matches Editor)
       return `
         <text 
           x="${el.x}" y="${el.y}" 
@@ -99,12 +99,11 @@ export async function GET(request: Request) {
       const dataUri = await fetchImageToBase64(targetUrl);
       if (!dataUri) return '';
 
-      // FIX: X/Y is Top-Left (No offset needed)
-      // Matches Editor logic: { left: el.x, top: el.y }
+      // Top-Left Anchor Logic (matches Editor)
       let xPos = el.x;
       let yPos = el.y;
       
-      let preserveRatio = "xMidYMid meet"; // Default contain
+      let preserveRatio = "xMidYMid meet"; 
       if (el.fit === 'cover') preserveRatio = "xMidYMid slice";
       if (el.fit === 'stretch') preserveRatio = "none";
 
@@ -189,8 +188,10 @@ export async function GET(request: Request) {
     `;
   }
 
+  // FIX: Reverted to explicit pixel dimensions. 
+  // This forces the browser to respect the Aspect Ratio defined by width/height.
   const svg = `
-    <svg width="100%" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
       ${backgroundSvg}
       ${contentSvg}
     </svg>`;

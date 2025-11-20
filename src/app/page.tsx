@@ -654,6 +654,8 @@ export default function Home() {
             <div className="h-6 w-px bg-slate-800 mx-2" />
 
             <button
+              disabled={!user}
+              title={!user ? "Sign in to copy markdown" : "Copy Markdown"}
               onClick={() => {
                 if (!user) return;
                 const url = getApiUrl();
@@ -662,8 +664,11 @@ export default function Home() {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-              disabled={!user}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all shadow-lg ${
+                !user 
+                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' 
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20'
+              }`}
             >
               {copied ? <Icons.Check size={16} /> : <Icons.Copy size={16} />}
               {copied ? 'Copied!' : 'Copy Markdown'}
@@ -815,7 +820,7 @@ export default function Home() {
                 </button>
                 <button onClick={addImage} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-all border border-slate-700 hover:border-slate-600">
                     <Icons.Plus size={16} />
-                    <span className="text-sm font-medium">Add Image/MD</span>
+                    <span className="text-sm font-medium">Add Image / MD</span>
                 </button>
             </div>
           </div>

@@ -655,13 +655,15 @@ export default function Home() {
 
             <button
               onClick={() => {
+                if (!user) return;
                 const url = getApiUrl();
                 const markdown = `![Widget](${url})`;
                 navigator.clipboard.writeText(markdown);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-emerald-500/20"
+              disabled={!user}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             >
               {copied ? <Icons.Check size={16} /> : <Icons.Copy size={16} />}
               {copied ? 'Copied!' : 'Copy Markdown'}

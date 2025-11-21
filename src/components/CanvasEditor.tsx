@@ -50,9 +50,9 @@ interface CanvasEditorProps {
   width: number;
   height: number;
   elements: CanvasElement[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-  onChange: (newElements: CanvasElement[]) => void;
+  selectedIds: string[];
+  onSelect: (ids: string[]) => void;
+  onChange: (newElements: CanvasElement[], saveHistory?: boolean) => void;
   bgImage?: string;
   bgFit?: 'cover' | 'contain' | 'stretch';
   theme?: string;
@@ -63,7 +63,7 @@ interface CanvasEditorProps {
   style?: string;
 }
 
-const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid }: any) => {
+const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid, onRegister, onDragStart, onDragMove, onDragEnd, onTransformEnd }: any) => {
   // Fix for github-readme-stats and skillicons to ensure they render in Canvas
   // We use a proxy to fetch the image and avoid CORS/Canvas tainting issues
   // and to ensure the SVG is served with correct headers
@@ -83,90 +83,51 @@ const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid }: an
 
   const [image] = useImage(imageSrc, 'anonymous');
   const shapeRef = useRef<any>(null);
-  const trRef = useRef<any>(null);
 
   useEffect(() => {
-    if (isSelected && trRef.current && shapeRef.current) {
-      trRef.current.nodes([shapeRef.current]);
-      trRef.current.getLayer().batchDraw();
+    if (shapeRef.current) {
+      onRegister(element.id, shapeRef.current);
     }
-  }, [isSelected]);
+  }, [element.id, onRegister]);
 
   return (
-    <>
-      <KonvaImage
-        image={image}
-        ref={shapeRef}
-        x={element.x}
-        y={element.y}
-        width={element.width}
-        height={element.height}
-        rotation={element.rotation || 0}
-        draggable
-        dragBoundFunc={(pos) => {
-          if (!showGrid) return pos;
-          return {
-            x: Math.round(pos.x / GRID_SIZE) * GRID_SIZE,
-            y: Math.round(pos.y / GRID_SIZE) * GRID_SIZE
-          };
-        }}
-        onClick={() => onSelect(element.id)}
-        onTap={() => onSelect(element.id)}
-        onDragEnd={(e) => {
-          onChange({
-            ...element,
-            x: e.target.x(),
-            y: e.target.y(),
-          });
-        }}
-        onTransformEnd={(e) => {
-          const node = shapeRef.current;
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
-
-          // reset scale to 1 and adjust width/height
-          node.scaleX(1);
-          node.scaleY(1);
-
-          const newX = node.x();
-          const newY = node.y();
-
-          onChange({
-            ...element,
-            x: showGrid ? Math.round(newX / GRID_SIZE) * GRID_SIZE : newX,
-            y: showGrid ? Math.round(newY / GRID_SIZE) * GRID_SIZE : newY,
-            width: Math.max(5, node.width() * scaleX),
-            height: Math.max(5, node.height() * scaleY),
-            rotation: node.rotation(),
-          });
-        }}
-      />
-      {isSelected && (
-        <Transformer
-          ref={trRef}
-          boundBoxFunc={(oldBox, newBox) => {
-            if (newBox.width < 5 || newBox.height < 5) {
-              return oldBox;
-            }
-            return newBox;
-          }}
-        />
-      )}
-    </>
+    <KonvaImage
+      image={image}
+      ref={shapeRef}
+      x={element.x}
+      y={element.y}
+      width={element.width}
+      height={element.height}
+      rotation={element.rotation || 0}
+      draggable
+      name="object"
+      id={element.id}
+      dragBoundFunc={(pos) => {
+        if (!showGrid) return pos;
+        return {
+          x: Math.round(pos.x / GRID_SIZE) * GRID_SIZE,
+          y: Math.round(pos.y / GRID_SIZE) * GRID_SIZE
+        };
+      }}
+      onClick={(e) => onSelect(element.id, e)}
+      onTap={(e) => onSelect(element.id, e)}
+      onDragStart={(e) => onDragStart(e, element.id)}
+      onDragMove={(e) => onDragMove(e, element.id)}
+      onDragEnd={(e) => onDragEnd(e, element.id)}
+      onTransformEnd={(e) => onTransformEnd(e, element.id)}
+    />
   );
 };
 
-const EditableText = ({ element, isSelected, onSelect, onChange, showGrid }: any) => {
+const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onRegister, onDragStart, onDragMove, onDragEnd, onTransformEnd }: any) => {
   const shapeRef = useRef<any>(null);
-  const trRef = useRef<any>(null);
   const [dimensions, setDimensions] = React.useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    if (isSelected && trRef.current && shapeRef.current) {
-      trRef.current.nodes([shapeRef.current]);
-      trRef.current.getLayer().batchDraw();
+    if (shapeRef.current) {
+      onRegister(element.id, shapeRef.current);
     }
-  }, [isSelected]);
+  }, [element.id, onRegister]);
 
   useEffect(() => {
     if (shapeRef.current) {
@@ -183,7 +144,7 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid }: any
             ...element,
             width: w,
             height: h
-          });
+          }, false);
         }, 0);
       }
     }
@@ -268,84 +229,51 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid }: any
   }
 
   return (
-    <>
-      <Text
-        ref={shapeRef}
-        text={element.text}
-        x={element.x}
-        y={element.y}
-        offsetX={offsetX}
-        align={element.align === 'middle' ? 'center' : element.align === 'end' ? 'right' : 'left'}
-        fontSize={element.size}
-        fontFamily={element.fontFamily}
-        fontStyle={`${element.bold ? 'bold' : ''} ${element.italic ? 'italic' : ''}`.trim() || 'normal'}
-        textDecoration={element.underline ? 'underline' : ''}
-        {...fillProps}
-        {...shadowProps}
-        {...strokeProps}
-        draggable
-        dragBoundFunc={(pos) => {
-          if (!showGrid) return pos;
-          
-          // Snap the visual left edge to the grid
-          // Visual Left = pos.x - offsetX
-          // We want Visual Left to be k * GRID_SIZE
-          // So pos.x = k * GRID_SIZE + offsetX
-          
-          const snappedVisualLeft = Math.round((pos.x - offsetX) / GRID_SIZE) * GRID_SIZE;
-          const snappedX = snappedVisualLeft + offsetX;
+    <Text
+      ref={shapeRef}
+      text={element.text}
+      x={element.x}
+      y={element.y}
+      offsetX={offsetX}
+      align={element.align === 'middle' ? 'center' : element.align === 'end' ? 'right' : 'left'}
+      fontSize={element.size}
+      fontFamily={element.fontFamily}
+      fontStyle={`${element.bold ? 'bold' : ''} ${element.italic ? 'italic' : ''}`.trim() || 'normal'}
+      textDecoration={element.underline ? 'underline' : ''}
+      {...fillProps}
+      {...shadowProps}
+      {...strokeProps}
+      draggable
+      name="object"
+      id={element.id}
+      dragBoundFunc={(pos) => {
+        if (!showGrid) return pos;
+        
+        // Snap the visual left edge to the grid
+        // Visual Left = pos.x - offsetX
+        // We want Visual Left to be k * GRID_SIZE
+        // So pos.x = k * GRID_SIZE + offsetX
+        
+        const snappedVisualLeft = Math.round((pos.x - offsetX) / GRID_SIZE) * GRID_SIZE;
+        const snappedX = snappedVisualLeft + offsetX;
 
-          // Snap the visual top edge to the grid
-          // Visual Top = pos.y - offsetY (offsetY is 0)
-          const snappedY = Math.round(pos.y / GRID_SIZE) * GRID_SIZE;
+        // Snap the visual top edge to the grid
+        // Visual Top = pos.y - offsetY (offsetY is 0)
+        const snappedY = Math.round(pos.y / GRID_SIZE) * GRID_SIZE;
 
-          return {
-            x: snappedX,
-            y: snappedY
-          };
-        }}
-        rotation={element.rotation || 0}
-        onClick={() => onSelect(element.id)}
-        onTap={() => onSelect(element.id)}
-        onDragEnd={(e) => {
-          onChange({
-            ...element,
-            x: e.target.x(),
-            y: e.target.y(),
-          });
-        }}
-        onTransformEnd={(e) => {
-          const node = shapeRef.current;
-          const scaleX = node.scaleX();
-
-          node.scaleX(1);
-          node.scaleY(1);
-
-          const newX = node.x();
-          const newY = node.y();
-
-          onChange({
-            ...element,
-            x: showGrid ? Math.round(newX / GRID_SIZE) * GRID_SIZE : newX,
-            y: showGrid ? Math.round(newY / GRID_SIZE) * GRID_SIZE : newY,
-            size: Math.round(element.size * scaleX),
-            rotation: node.rotation(),
-          });
-        }}
-      />
-      {isSelected && (
-        <Transformer
-          ref={trRef}
-          enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
-          boundBoxFunc={(oldBox, newBox) => {
-            if (newBox.width < 5 || newBox.height < 5) {
-              return oldBox;
-            }
-            return newBox;
-          }}
-        />
-      )}
-    </>
+        return {
+          x: snappedX,
+          y: snappedY
+        };
+      }}
+      rotation={element.rotation || 0}
+      onClick={(e) => onSelect(element.id, e)}
+      onTap={(e) => onSelect(element.id, e)}
+      onDragStart={(e) => onDragStart(e, element.id)}
+      onDragMove={(e) => onDragMove(e, element.id)}
+      onDragEnd={(e) => onDragEnd(e, element.id)}
+      onTransformEnd={(e) => onTransformEnd(e, element.id)}
+    />
   );
 };
 
@@ -446,30 +374,171 @@ const GridLayer = ({ width, height }: { width: number; height: number }) => {
   return <Group listening={false}>{lines}</Group>;
 };
 
-export default function CanvasEditor({ width, height, elements, selectedId, onSelect, onChange, bgImage, bgFit, theme, customFrom, customTo, blobCount, showGrid, style }: CanvasEditorProps) {
+export default function CanvasEditor({ width, height, elements, selectedIds, onSelect, onChange, bgImage, bgFit, theme, customFrom, customTo, blobCount, showGrid, style }: CanvasEditorProps) {
+  const trRef = useRef<any>(null);
+  const layerRef = useRef<any>(null);
+  const shapeRefs = useRef<any>({});
+  const dragStartPos = useRef<{[key: string]: {x: number, y: number}}>({});
 
-  const handleElementChange = (newAttrs: any) => {
-    const newElements = elements.map(el => {
-      if (el.id === newAttrs.id) {
-        return newAttrs;
+  // Register refs
+  const handleRegister = (id: string, node: any) => {
+    shapeRefs.current[id] = node;
+  };
+
+  // Update transformer nodes
+  useEffect(() => {
+    if (trRef.current && layerRef.current) {
+      const nodes = selectedIds.map(id => shapeRefs.current[id]).filter(Boolean);
+      trRef.current.nodes(nodes);
+      trRef.current.getLayer().batchDraw();
+    }
+  }, [selectedIds, elements]);
+
+  const handleSelect = (id: string, e: any) => {
+    const isMulti = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
+    
+    if (isMulti) {
+      if (selectedIds.includes(id)) {
+        onSelect(selectedIds.filter(i => i !== id));
+      } else {
+        onSelect([...selectedIds, id]);
       }
-      return el;
-    });
-    onChange(newElements);
+    } else {
+      if (!selectedIds.includes(id)) {
+        onSelect([id]);
+      }
+    }
+    e.cancelBubble = true;
   };
 
   const checkDeselect = (e: any) => {
-    // deselect when clicked on empty area
     const clickedOnEmpty = e.target === e.target.getStage();
     if (clickedOnEmpty) {
-      onSelect(null);
+      onSelect([]);
     }
+  };
+
+  const onDragStart = (e: any, id: string) => {
+    // If dragging an item that is NOT selected, select it (and deselect others unless multi)
+    if (!selectedIds.includes(id)) {
+        onSelect([id]);
+        // We need to wait for state update to register refs? 
+        // Actually, if we select it now, the next render will update selectedIds.
+        // But the drag has already started on the node.
+        // For this drag session, it might be just this node.
+    }
+    
+    // Store initial positions of all selected nodes (including the one just clicked if it was added)
+    // Note: if we just called onSelect([id]), selectedIds is not updated yet in this closure.
+    // So we might miss it if we rely on selectedIds.
+    // But if it wasn't selected, it's a single selection drag, so multi-drag logic doesn't apply anyway.
+    
+    selectedIds.forEach(sid => {
+        const node = shapeRefs.current[sid];
+        if (node) {
+            dragStartPos.current[sid] = { x: node.x(), y: node.y() };
+        }
+    });
+    // Also store for the current one if it wasn't in selectedIds yet (though visually it won't be multi-drag)
+    if (!selectedIds.includes(id)) {
+         const node = shapeRefs.current[id];
+         if (node) {
+             dragStartPos.current[id] = { x: node.x(), y: node.y() };
+         }
+    }
+  };
+
+  const onDragMove = (e: any, id: string) => {
+      // If we are dragging a node that is part of the selection
+      const isSelected = selectedIds.includes(id);
+      if (!isSelected && selectedIds.length > 0) return; // Should not happen if we select on drag start
+      
+      const draggedNode = e.target;
+      const startPos = dragStartPos.current[id];
+      
+      if (!startPos) return;
+      
+      const dx = draggedNode.x() - startPos.x;
+      const dy = draggedNode.y() - startPos.y;
+      
+      selectedIds.forEach(sid => {
+          if (sid !== id) {
+              const node = shapeRefs.current[sid];
+              const sPos = dragStartPos.current[sid];
+              if (node && sPos) {
+                  node.x(sPos.x + dx);
+                  node.y(sPos.y + dy);
+              }
+          }
+      });
+  };
+
+  const onDragEnd = (e: any, id: string) => {
+      // Update all selected elements in state
+      // If the dragged item was not in selectedIds (e.g. single drag of unselected), we should include it.
+      const idsToUpdate = selectedIds.includes(id) ? selectedIds : [id];
+
+      const newElements = elements.map(el => {
+          if (idsToUpdate.includes(el.id)) {
+              const node = shapeRefs.current[el.id];
+              if (node) {
+                  return {
+                      ...el,
+                      x: node.x(),
+                      y: node.y()
+                  };
+              }
+          }
+          return el;
+      });
+      onChange(newElements);
+  };
+
+  const onTransformEnd = (e: any, id: string) => {
+      // Transformer updates the nodes directly.
+      // We need to sync back to state.
+      
+      const newElements = elements.map(el => {
+          if (selectedIds.includes(el.id)) {
+              const node = shapeRefs.current[el.id];
+              if (node) {
+                  const scaleX = node.scaleX();
+                  const scaleY = node.scaleY();
+                  
+                  // Reset scale to 1 and update width/height/fontSize
+                  node.scaleX(1);
+                  node.scaleY(1);
+                  
+                  const newAttrs: any = {
+                      x: node.x(),
+                      y: node.y(),
+                      rotation: node.rotation()
+                  };
+                  
+                  if (el.type === 'text') {
+                      newAttrs.size = Math.round((el.size || 16) * scaleX);
+                  } else {
+                      newAttrs.width = Math.max(5, (el.width || 100) * scaleX);
+                      newAttrs.height = Math.max(5, (el.height || 100) * scaleY);
+                  }
+                  
+                  return { ...el, ...newAttrs };
+              }
+          }
+          return el;
+      });
+      onChange(newElements);
+  };
+
+  const handleElementUpdate = (updatedElement: any, saveHistory: boolean = true) => {
+    const newElements = elements.map(el => el.id === updatedElement.id ? updatedElement : el);
+    onChange(newElements, saveHistory);
   };
 
   return (
     <div className="shadow-2xl overflow-hidden bg-[url('https://res.cloudinary.com/practicaldev/image/fetch/s--_MCEk7P6--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/i/1wwdyw5de8avrdkgtz5n.png')] bg-repeat" style={{ width, height }}>
       <Stage width={width} height={height} onMouseDown={checkDeselect} onTouchStart={checkDeselect}>
-        <Layer>
+        <Layer ref={layerRef}>
           <BackgroundLayer
             width={width}
             height={height}
@@ -482,33 +551,36 @@ export default function CanvasEditor({ width, height, elements, selectedId, onSe
             style={style}
           />
           {showGrid && <GridLayer width={width} height={height} />}
-        </Layer>
-        <Layer>
+          
           {elements.map((el) => {
+            const commonProps = {
+                element: el,
+                isSelected: selectedIds.includes(el.id),
+                onSelect: handleSelect,
+                onChange: handleElementUpdate,
+                showGrid,
+                onRegister: handleRegister,
+                onDragStart: onDragStart,
+                onDragMove: onDragMove,
+                onDragEnd: onDragEnd,
+                onTransformEnd: onTransformEnd
+            };
+            
             if (el.type === 'image') {
-              return (
-                <URLImage
-                  key={el.id}
-                  src={el.src}
-                  element={el}
-                  isSelected={el.id === selectedId}
-                  onSelect={onSelect}
-                  onChange={handleElementChange}
-                  showGrid={showGrid}
-                />
-              );
+              return <URLImage key={el.id} src={el.src} {...commonProps} />;
             }
-            return (
-              <EditableText
-                key={el.id}
-                element={el}
-                isSelected={el.id === selectedId}
-                onSelect={onSelect}
-                onChange={handleElementChange}
-                showGrid={showGrid}
-              />
-            );
+            return <EditableText key={el.id} {...commonProps} />;
           })}
+          
+          <Transformer
+            ref={trRef}
+            boundBoxFunc={(oldBox, newBox) => {
+              if (newBox.width < 5 || newBox.height < 5) {
+                return oldBox;
+              }
+              return newBox;
+            }}
+          />
         </Layer>
       </Stage>
     </div>

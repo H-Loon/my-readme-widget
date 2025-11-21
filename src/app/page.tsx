@@ -120,7 +120,7 @@ export default function Home() {
     { id: '1', type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, color: '#334155', size: 48, bold: true, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowEnabled: false, shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
     { id: '2', type: 'text', text: "Building things for the web", x: 700, y: 260, color: '#64748b', size: 24, bold: false, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowEnabled: false, shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
   ]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [canvasWidth, setCanvasWidth] = useState(1400);
   const [canvasHeight, setCanvasHeight] = useState(600);
   const [theme, setTheme] = useState('transparent');
@@ -141,6 +141,48 @@ export default function Home() {
   const [fontSearch, setFontSearch] = useState('');
   const [googleFonts, setGoogleFonts] = useState<string[]>([]);
   const [zoom, setZoom] = useState(1);
+  const ignoreNextUpdate = useRef(false);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasUnsaved = savedWidgets.some((w: any) => w.dirty || w.id.startsWith('temp_'));
+      if (hasUnsaved) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [savedWidgets]);
+
+  // Sync current state to savedWidgets list
+  useEffect(() => {
+    if (!savedId || ignoreNextUpdate.current) {
+      ignoreNextUpdate.current = false;
+      return;
+    }
+
+    setSavedWidgets(prev => prev.map(w => {
+      if (w.id === savedId) {
+        return {
+          ...w,
+          name: widgetName,
+          elements,
+          width: canvasWidth,
+          height: canvasHeight,
+          theme,
+          style,
+          blobCount,
+          customFrom,
+          customTo,
+          bgImage,
+          bgFit,
+          dirty: true
+        };
+      }
+      return w;
+    }));
+  }, [elements, canvasWidth, canvasHeight, theme, style, blobCount, customFrom, customTo, bgImage, bgFit, widgetName, savedId]);
 
   useEffect(() => {
     fetch('https://api.fontsource.org/v1/fonts')
@@ -266,15 +308,24 @@ export default function Home() {
         bgFit
       };
 
-      if (savedId) {
+      if (savedId && !savedId.startsWith('temp_')) {
         await setDoc(doc(db, "widgets", savedId), widgetData, { merge: true });
+        setSavedWidgets(prev => prev.map(w => w.id === savedId ? { ...w, ...widgetData, dirty: false } : w));
         alert("Widget updated!");
-        fetchWidgets(user);
       } else {
         const docRef = await addDoc(collection(db, "widgets"), widgetData);
-        setSavedId(docRef.id);
+        const newId = docRef.id;
+        
+        // If we were working on a temp widget, replace it in the list
+        if (savedId && savedId.startsWith('temp_')) {
+          setSavedWidgets(prev => prev.map(w => w.id === savedId ? { ...w, ...widgetData, id: newId, dirty: false } : w));
+        } else {
+          // Should not happen if logic is correct, but fallback
+          setSavedWidgets(prev => [{ ...widgetData, id: newId, dirty: false }, ...prev]);
+        }
+        
+        setSavedId(newId);
         alert("Saved! Short link generated.");
-        fetchWidgets(user);
       }
     } catch (e) {
       console.error("Error saving document: ", e);
@@ -284,12 +335,36 @@ export default function Home() {
 
   const deleteWidget = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this widget?")) return;
+    
+    const isTemp = id.startsWith('temp_');
+    
+    if (!confirm(isTemp ? "Discard this unsaved widget?" : "Are you sure you want to delete this widget?")) return;
+    
+    if (isTemp) {
+      const remaining = savedWidgets.filter(w => w.id !== id);
+      setSavedWidgets(remaining);
+      
+      if (savedId === id) {
+        if (remaining.length > 0) {
+          loadWidget(remaining[0]);
+        } else {
+          createNew();
+        }
+      }
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, "widgets", id));
-      setSavedWidgets(prev => prev.filter(w => w.id !== id));
+      const remaining = savedWidgets.filter(w => w.id !== id);
+      setSavedWidgets(remaining);
+      
       if (savedId === id) {
-        setSavedId(null);
+        if (remaining.length > 0) {
+          loadWidget(remaining[0]);
+        } else {
+          createNew();
+        }
       }
     } catch (e) {
       console.error("Error deleting", e);
@@ -297,6 +372,7 @@ export default function Home() {
   };
 
   const loadWidget = (widget: any) => {
+    ignoreNextUpdate.current = true; // Prevent sync effect from marking as dirty immediately
     setElements(widget.elements || []);
     setCanvasWidth(widget.width || 1400);
     setCanvasHeight(widget.height || 600);
@@ -312,15 +388,31 @@ export default function Home() {
   };
 
   const createNew = () => {
-    setSavedId(null);
-    setWidgetName('Untitled Widget');
-    setElements([
+    const tempId = `temp_${Date.now()}`;
+    const defaultElements: CanvasElement[] = [
       { id: '1', type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, color: '#334155', size: 48, bold: true, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowEnabled: false, shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
       { id: '2', type: 'text', text: "Building things for the web", x: 700, y: 260, color: '#64748b', size: 24, bold: false, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowEnabled: false, shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
-    ]);
-    setTheme('transparent');
-    setStyle('transparent');
-    setBgImage('');
+    ];
+
+    const newWidget = {
+      id: tempId,
+      name: 'Untitled Widget',
+      elements: defaultElements,
+      width: 1400,
+      height: 600,
+      theme: 'transparent',
+      style: 'transparent',
+      blobCount: 5,
+      customFrom: '#6366f1',
+      customTo: '#ec4899',
+      bgImage: '',
+      bgFit: 'cover',
+      createdAt: { seconds: Date.now() / 1000 },
+      dirty: true
+    };
+
+    setSavedWidgets(prev => [newWidget, ...prev]);
+    loadWidget(newWidget);
   };
 
   const handleMouseDown = (e: React.MouseEvent, id: string) => {
@@ -343,10 +435,10 @@ export default function Home() {
   };
 
   const handleAlignChange = (newAlign: 'start' | 'middle' | 'end') => {
-    if (!selectedId) return;
+    if (selectedIds.length === 0) return;
 
-    setElements(prev => prev.map(el => {
-      if (el.id === selectedId && el.type === 'text') {
+    const newElements = elements.map(el => {
+      if (selectedIds.includes(el.id) && el.type === 'text') {
         const width = el.width || (el.text?.length || 0) * (el.size || 16) * 0.6;
         const oldAlign = el.align || 'start';
 
@@ -363,12 +455,13 @@ export default function Home() {
         return { ...el, align: newAlign, x: newX };
       }
       return el;
-    }));
+    });
+    handleElementsChange(newElements);
   };
 
   const addText = () => {
     const newId = Date.now().toString();
-    setElements([...elements, {
+    const newElements: CanvasElement[] = [...elements, {
       id: newId,
       type: 'text',
       text: "New Text",
@@ -388,8 +481,9 @@ export default function Home() {
       shadowOffsetY: 2,
       gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] },
       neon: { enabled: false, color: '#00ff00', intensity: 20 }
-    }]);
-    setSelectedId(newId);
+    }];
+    handleElementsChange(newElements);
+    setSelectedIds([newId]);
   };
 
   const resolveImageDimensions = (src: string, id: string) => {
@@ -405,7 +499,7 @@ export default function Home() {
         newH = maxW / ratio;
       }
 
-      setElements(prev => prev.map(el => {
+      const newElements = elements.map(el => {
         if (el.id === id) {
           return {
             ...el,
@@ -415,7 +509,8 @@ export default function Home() {
           };
         }
         return el;
-      }));
+      });
+      handleElementsChange(newElements);
     };
     img.src = src;
   };
@@ -427,8 +522,9 @@ export default function Home() {
     const startY = (canvasHeight / 2) + 60;
     const defaultSrc = "https://img.shields.io/badge/Badge-Example-blue";
 
-    setElements([...elements, { id: newId, type: 'image', src: defaultSrc, x: startX, y: startY, width: 100, height: 100, scale: 1.0, fit: 'contain' }]);
-    setSelectedId(newId);
+    const newElements: CanvasElement[] = [...elements, { id: newId, type: 'image', src: defaultSrc, x: startX, y: startY, width: 100, height: 100, scale: 1.0, fit: 'contain' }];
+    handleElementsChange(newElements);
+    setSelectedIds([newId]);
     resolveImageDimensions(defaultSrc, newId);
   };
 
@@ -457,15 +553,16 @@ export default function Home() {
       loadWebFont(value);
     }
 
-    setElements(prev => prev.map(el => el.id === selectedId ? { ...el, [key]: finalValue } : el));
-    if (key === 'src' && selectedId) {
-      resolveImageDimensions(finalValue, selectedId);
+    const newElements = elements.map(el => selectedIds.includes(el.id) ? { ...el, [key]: finalValue } : el);
+    handleElementsChange(newElements);
+    if (key === 'src') {
+      selectedIds.forEach(id => resolveImageDimensions(finalValue, id));
     }
   };
 
   const updateScale = (newScale: number) => {
-    setElements(prev => prev.map(el => {
-      if (el.id === selectedId && el.type === 'image') {
+    const newElements = elements.map(el => {
+      if (selectedIds.includes(el.id) && el.type === 'image') {
         const oldScale = el.scale || 1;
         const safeOldScale = oldScale === 0 ? 1 : oldScale;
         const ratio = newScale / safeOldScale;
@@ -477,17 +574,19 @@ export default function Home() {
         };
       }
       return el;
-    }));
+    });
+    handleElementsChange(newElements);
   };
 
   const deleteSelected = () => {
-    setElements(prev => prev.filter(el => el.id !== selectedId));
-    setSelectedId(null);
+    const newElements = elements.filter(el => !selectedIds.includes(el.id));
+    handleElementsChange(newElements);
+    setSelectedIds([]);
   };
 
   const fitToWidth = () => {
-    setElements(prev => prev.map(el => {
-      if (el.id === selectedId && el.type === 'image') {
+    const newElements = elements.map(el => {
+      if (selectedIds.includes(el.id) && el.type === 'image') {
         const newWidth = canvasWidth;
         const ratio = newWidth / (el.width || 1);
         const newHeight = Math.round((el.height || 1) * ratio);
@@ -501,12 +600,13 @@ export default function Home() {
         };
       }
       return el;
-    }));
+    });
+    handleElementsChange(newElements);
   };
 
   const fitToHeight = () => {
-    setElements(prev => prev.map(el => {
-      if (el.id === selectedId && el.type === 'image') {
+    const newElements = elements.map(el => {
+      if (selectedIds.includes(el.id) && el.type === 'image') {
         const newHeight = canvasHeight;
         const ratio = newHeight / (el.height || 1);
         const newWidth = Math.round((el.width || 1) * ratio);
@@ -520,7 +620,8 @@ export default function Home() {
         };
       }
       return el;
-    }));
+    });
+    handleElementsChange(newElements);
   };
 
   const getApiUrl = (forcePreview = false) => {
@@ -643,6 +744,7 @@ export default function Home() {
                   >
                     <span className={`text-xs font-medium truncate ${savedId === w.id ? 'text-blue-200' : 'text-slate-300'}`}>
                       {w.name}
+                      {(w.dirty || w.id.startsWith('temp_')) && <span className="text-amber-400 ml-1">*</span>}
                     </span>
                     <button
                       onClick={(e) => deleteWidget(w.id, e)}
@@ -795,20 +897,28 @@ export default function Home() {
           </div>
 
           {/* Selected Element Properties */}
-          {selectedId && (
+          {selectedIds.length > 0 && (
             <div className="space-y-4 pt-4 border-t border-slate-800">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Selected Element</h3>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  {selectedIds.length > 1 ? `${selectedIds.length} Elements Selected` : 'Selected Element'}
+                </h3>
                 <button onClick={deleteSelected} className="text-slate-500 hover:text-red-400 transition-colors">
                   <Icons.Trash size={16} />
                 </button>
               </div>
 
+              {selectedIds.length > 1 && (
+                <div className="text-xs text-slate-500 italic">
+                  Editing properties will apply to all selected items.
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-medium text-slate-400">X</label>
                   <NumberInput
-                    value={Math.round(elements.find(el => el.id === selectedId)?.x || 0)}
+                    value={Math.round(elements.find(el => el.id === selectedIds[0])?.x || 0)}
                     onChange={(val) => updateSelected('x', val)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
                   />
@@ -816,19 +926,19 @@ export default function Home() {
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-medium text-slate-400">Y</label>
                   <NumberInput
-                    value={Math.round(elements.find(el => el.id === selectedId)?.y || 0)}
+                    value={Math.round(elements.find(el => el.id === selectedIds[0])?.y || 0)}
                     onChange={(val) => updateSelected('y', val)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
                   />
                 </div>
               </div>
 
-              {elements.find(el => el.id === selectedId)?.type === 'text' && (
+              {elements.find(el => el.id === selectedIds[0])?.type === 'text' && (
                 <>
                   <div className="space-y-2">
                     <label className="text-[11px] font-medium text-slate-400">Text Content</label>
                     <textarea
-                      value={elements.find(el => el.id === selectedId)?.text || ''}
+                      value={elements.find(el => el.id === selectedIds[0])?.text || ''}
                       onChange={(e) => updateSelected('text', e.target.value)}
                       className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none resize-y min-h-[80px] transition-all"
                     />
@@ -839,7 +949,7 @@ export default function Home() {
                       <div className="space-y-1.5">
                         <label className="text-[11px] font-medium text-slate-400">Font Size</label>
                         <NumberInput
-                          value={elements.find(el => el.id === selectedId)?.size || 16}
+                          value={elements.find(el => el.id === selectedIds[0])?.size || 16}
                           onChange={(val) => updateSelected('size', val)}
                           className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
                         />
@@ -849,13 +959,13 @@ export default function Home() {
                         <div className="flex items-center gap-2 h-[34px]">
                           <input
                             type="text"
-                            value={elements.find(el => el.id === selectedId)?.color || '#000000'}
+                            value={elements.find(el => el.id === selectedIds[0])?.color || '#000000'}
                             onChange={(e) => updateSelected('color', e.target.value)}
                             className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
                           />
                           <input
                             type="color"
-                            value={elements.find(el => el.id === selectedId)?.color || '#000000'}
+                            value={elements.find(el => el.id === selectedIds[0])?.color || '#000000'}
                             onChange={(e) => updateSelected('color', e.target.value)}
                             className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0"
                           />
@@ -881,7 +991,7 @@ export default function Home() {
                         className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 cursor-pointer flex justify-between items-center hover:border-slate-700 transition-all"
                         onClick={() => setShowFontList(!showFontList)}
                       >
-                        <span className="truncate">{elements.find(el => el.id === selectedId)?.fontFamily || 'sans-serif'}</span>
+                        <span className="truncate">{elements.find(el => el.id === selectedIds[0])?.fontFamily || 'sans-serif'}</span>
                         <Icons.Move size={12} className="rotate-90 text-slate-500" />
                       </div>
                       {showFontList && (
@@ -918,20 +1028,20 @@ export default function Home() {
 
                     <div className="flex gap-1 bg-slate-900 p-1 rounded-md border border-slate-800">
                       <button
-                        onClick={() => updateSelected('bold', !elements.find(el => el.id === selectedId)?.bold)}
-                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.bold ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        onClick={() => updateSelected('bold', !elements.find(el => el.id === selectedIds[0])?.bold)}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.bold ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
                       >
                         <Icons.Bold size={16} />
                       </button>
                       <button
-                        onClick={() => updateSelected('italic', !elements.find(el => el.id === selectedId)?.italic)}
-                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.italic ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        onClick={() => updateSelected('italic', !elements.find(el => el.id === selectedIds[0])?.italic)}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.italic ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
                       >
                         <Icons.Italic size={16} />
                       </button>
                       <button
-                        onClick={() => updateSelected('underline', !elements.find(el => el.id === selectedId)?.underline)}
-                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.underline ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        onClick={() => updateSelected('underline', !elements.find(el => el.id === selectedIds[0])?.underline)}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.underline ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
                       >
                         <Icons.Underline size={16} />
                       </button>
@@ -940,19 +1050,19 @@ export default function Home() {
                     <div className="flex gap-1 bg-slate-900 p-1 rounded-md border border-slate-800">
                       <button
                         onClick={() => handleAlignChange('start')}
-                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.align === 'start' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.align === 'start' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
                       >
                         <Icons.AlignLeft size={16} />
                       </button>
                       <button
                         onClick={() => handleAlignChange('middle')}
-                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.align === 'middle' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.align === 'middle' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
                       >
                         <Icons.AlignCenter size={16} />
                       </button>
                       <button
                         onClick={() => handleAlignChange('end')}
-                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.align === 'end' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.align === 'end' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
                       >
                         <Icons.AlignRight size={16} />
                       </button>
@@ -963,24 +1073,24 @@ export default function Home() {
                       <div className="flex items-center justify-between">
                         <label className="text-[11px] font-medium text-slate-400">Shadow</label>
                         <Switch
-                          checked={elements.find(el => el.id === selectedId)?.shadowEnabled || false}
+                          checked={elements.find(el => el.id === selectedIds[0])?.shadowEnabled || false}
                           onChange={(checked) => updateSelected('shadowEnabled', checked)}
                         />
                       </div>
-                      {elements.find(el => el.id === selectedId)?.shadowEnabled && (
+                      {elements.find(el => el.id === selectedIds[0])?.shadowEnabled && (
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <label className="text-[11px] font-medium text-slate-400">Color</label>
                             <div className="flex items-center gap-2 h-[34px]">
                               <input
                                 type="text"
-                                value={elements.find(el => el.id === selectedId)?.shadowColor || '#000000'}
+                                value={elements.find(el => el.id === selectedIds[0])?.shadowColor || '#000000'}
                                 onChange={(e) => updateSelected('shadowColor', e.target.value)}
                                 className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
                               />
                               <input
                                 type="color"
-                                value={elements.find(el => el.id === selectedId)?.shadowColor || '#000000'}
+                                value={elements.find(el => el.id === selectedIds[0])?.shadowColor || '#000000'}
                                 onChange={(e) => updateSelected('shadowColor', e.target.value)}
                                 className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0 shrink-0"
                               />
@@ -989,7 +1099,7 @@ export default function Home() {
                           <div className="space-y-1.5">
                             <label className="text-[11px] font-medium text-slate-400">Blur</label>
                             <NumberInput
-                              value={elements.find(el => el.id === selectedId)?.shadowBlur || 0}
+                              value={elements.find(el => el.id === selectedIds[0])?.shadowBlur || 0}
                               onChange={(val) => updateSelected('shadowBlur', val)}
                               className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
                             />
@@ -997,7 +1107,7 @@ export default function Home() {
                           <div className="space-y-1.5">
                             <label className="text-[11px] font-medium text-slate-400">Offset X</label>
                             <NumberInput
-                              value={elements.find(el => el.id === selectedId)?.shadowOffsetX || 0}
+                              value={elements.find(el => el.id === selectedIds[0])?.shadowOffsetX || 0}
                               onChange={(val) => updateSelected('shadowOffsetX', val)}
                               className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
                             />
@@ -1005,7 +1115,7 @@ export default function Home() {
                           <div className="space-y-1.5">
                             <label className="text-[11px] font-medium text-slate-400">Offset Y</label>
                             <NumberInput
-                              value={elements.find(el => el.id === selectedId)?.shadowOffsetY || 0}
+                              value={elements.find(el => el.id === selectedIds[0])?.shadowOffsetY || 0}
                               onChange={(val) => updateSelected('shadowOffsetY', val)}
                               className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
                             />
@@ -1019,32 +1129,32 @@ export default function Home() {
                       <div className="flex items-center justify-between">
                         <label className="text-[11px] font-medium text-slate-400">Neon Glow</label>
                         <Switch
-                          checked={elements.find(el => el.id === selectedId)?.neon?.enabled || false}
+                          checked={elements.find(el => el.id === selectedIds[0])?.neon?.enabled || false}
                           onChange={(checked) => {
-                            const el = elements.find(el => el.id === selectedId);
+                            const el = elements.find(el => el.id === selectedIds[0]);
                             updateSelected('neon', { ...el?.neon, enabled: checked });
                           }}
                         />
                       </div>
-                      {elements.find(el => el.id === selectedId)?.neon?.enabled && (
+                      {elements.find(el => el.id === selectedIds[0])?.neon?.enabled && (
                         <div className="space-y-3">
                           <div className="space-y-1.5">
                             <label className="text-[11px] font-medium text-slate-400">Glow Color</label>
                             <div className="flex items-center gap-2 h-[34px]">
                               <input
                                 type="text"
-                                value={elements.find(el => el.id === selectedId)?.neon?.color || '#00ff00'}
+                                value={elements.find(el => el.id === selectedIds[0])?.neon?.color || '#00ff00'}
                                 onChange={(e) => {
-                                  const el = elements.find(el => el.id === selectedId);
+                                  const el = elements.find(el => el.id === selectedIds[0]);
                                   updateSelected('neon', { ...el?.neon, color: e.target.value });
                                 }}
                                 className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
                               />
                               <input
                                 type="color"
-                                value={elements.find(el => el.id === selectedId)?.neon?.color || '#00ff00'}
+                                value={elements.find(el => el.id === selectedIds[0])?.neon?.color || '#00ff00'}
                                 onChange={(e) => {
-                                  const el = elements.find(el => el.id === selectedId);
+                                  const el = elements.find(el => el.id === selectedIds[0]);
                                   updateSelected('neon', { ...el?.neon, color: e.target.value });
                                 }}
                                 className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0 shrink-0"
@@ -1056,9 +1166,9 @@ export default function Home() {
                             <input
                               type="range"
                               min="1" max="100"
-                              value={elements.find(el => el.id === selectedId)?.neon?.intensity || 20}
+                              value={elements.find(el => el.id === selectedIds[0])?.neon?.intensity || 20}
                               onChange={(e) => {
-                                const el = elements.find(el => el.id === selectedId);
+                                const el = elements.find(el => el.id === selectedIds[0]);
                                 updateSelected('neon', { ...el?.neon, intensity: Number(e.target.value) });
                               }}
                               className="w-full custom-range"
@@ -1073,23 +1183,23 @@ export default function Home() {
                       <div className="flex items-center justify-between">
                         <label className="text-[11px] font-medium text-slate-400">Gradient Fill</label>
                         <Switch
-                          checked={elements.find(el => el.id === selectedId)?.gradient?.enabled || false}
+                          checked={elements.find(el => el.id === selectedIds[0])?.gradient?.enabled || false}
                           onChange={(checked) => {
-                            const el = elements.find(el => el.id === selectedId);
+                            const el = elements.find(el => el.id === selectedIds[0]);
                             updateSelected('gradient', { ...el?.gradient, enabled: checked });
                           }}
                         />
                       </div>
-                      {elements.find(el => el.id === selectedId)?.gradient?.enabled && (
+                      {elements.find(el => el.id === selectedIds[0])?.gradient?.enabled && (
                         <div className="space-y-3">
                           <div className="space-y-1.5">
-                            <label className="text-[11px] font-medium text-slate-400">Angle ({elements.find(el => el.id === selectedId)?.gradient?.angle}°)</label>
+                            <label className="text-[11px] font-medium text-slate-400">Angle ({elements.find(el => el.id === selectedIds[0])?.gradient?.angle}°)</label>
                             <input
                               type="range"
                               min="0" max="360"
-                              value={elements.find(el => el.id === selectedId)?.gradient?.angle || 90}
+                              value={elements.find(el => el.id === selectedIds[0])?.gradient?.angle || 90}
                               onChange={(e) => {
-                                const el = elements.find(el => el.id === selectedId);
+                                const el = elements.find(el => el.id === selectedIds[0]);
                                 updateSelected('gradient', { ...el?.gradient, angle: Number(e.target.value) });
                               }}
                               className="w-full custom-range"
@@ -1099,9 +1209,9 @@ export default function Home() {
                           <div className="space-y-2">
                             <label className="text-[11px] font-medium text-slate-400">Gradient Preview</label>
                             <GradientSlider
-                              stops={elements.find(el => el.id === selectedId)?.gradient?.stops || []}
+                              stops={elements.find(el => el.id === selectedIds[0])?.gradient?.stops || []}
                               onChange={(newStops) => {
-                                const el = elements.find(el => el.id === selectedId);
+                                const el = elements.find(el => el.id === selectedIds[0]);
                                 updateSelected('gradient', { ...el?.gradient, stops: newStops });
                               }}
                             />
@@ -1109,13 +1219,13 @@ export default function Home() {
 
                           <div className="space-y-2">
                             <label className="text-[11px] font-medium text-slate-400">Colors</label>
-                            {elements.find(el => el.id === selectedId)?.gradient?.stops?.map((stop, idx) => (
+                            {elements.find(el => el.id === selectedIds[0])?.gradient?.stops?.map((stop, idx) => (
                               <div key={idx} className="flex items-center gap-2">
                                 <input
                                   type="color"
                                   value={stop.color}
                                   onChange={(e) => {
-                                    const el = elements.find(el => el.id === selectedId);
+                                    const el = elements.find(el => el.id === selectedIds[0]);
                                     const newStops = [...(el?.gradient?.stops || [])];
                                     newStops[idx] = { ...newStops[idx], color: e.target.value };
                                     updateSelected('gradient', { ...el?.gradient, stops: newStops });
@@ -1126,7 +1236,7 @@ export default function Home() {
                                 <span className="text-xs text-slate-500 w-12 text-right">{Math.round(stop.offset * 100)}%</span>
                                 <button
                                   onClick={() => {
-                                    const el = elements.find(el => el.id === selectedId);
+                                    const el = elements.find(el => el.id === selectedIds[0]);
                                     const newStops = (el?.gradient?.stops || []).filter((_, i) => i !== idx);
                                     updateSelected('gradient', { ...el?.gradient, stops: newStops });
                                   }}
@@ -1138,7 +1248,7 @@ export default function Home() {
                             ))}
                             <button
                               onClick={() => {
-                                const el = elements.find(el => el.id === selectedId);
+                                const el = elements.find(el => el.id === selectedIds[0]);
                                 const newStops = [...(el?.gradient?.stops || []), { offset: 0.5, color: '#ffffff' }];
                                 updateSelected('gradient', { ...el?.gradient, stops: newStops.sort((a, b) => a.offset - b.offset) });
                               }}
@@ -1154,13 +1264,13 @@ export default function Home() {
                 </>
               )}
 
-              {elements.find(el => el.id === selectedId)?.type === 'image' && (
+              {elements.find(el => el.id === selectedIds[0])?.type === 'image' && (
                 <>
                   <div className="space-y-2">
                     <label className="text-[11px] font-medium text-slate-400">Image URL</label>
                     <input
                       type="text"
-                      value={elements.find(el => el.id === selectedId)?.src || ''}
+                      value={elements.find(el => el.id === selectedIds[0])?.src || ''}
                       onChange={(e) => updateSelected('src', e.target.value)}
                       className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
                     />
@@ -1195,8 +1305,8 @@ export default function Home() {
                   width={canvasWidth}
                   height={canvasHeight}
                   elements={elements}
-                  selectedId={selectedId}
-                  onSelect={setSelectedId}
+                  selectedIds={selectedIds}
+                  onSelect={setSelectedIds}
                   onChange={handleElementsChange}
                   bgImage={bgImage}
                   bgFit={bgFit}

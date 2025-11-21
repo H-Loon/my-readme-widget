@@ -136,25 +136,23 @@ export async function GET(request: Request) {
       const w = el.width || (safeText.length * el.size * 0.6) || 100;
       const h = el.height || el.size || 20;
 
-      // Force text-anchor="middle" for SVG to ensure consistent centering
-      // We calculate the visual center based on the alignment and shift the group
-      let svgTextAnchor = 'middle';
+      // Use the actual text-anchor for SVG to ensure correct multi-line alignment
+      // We don't need to shift xOffset because the anchor point (el.x) is already correct
+      let svgTextAnchor = textAnchor;
       let xOffset = 0;
-
-      if (textAnchor === 'start') {
-        xOffset = w / 2;
-      } else if (textAnchor === 'middle') {
-        xOffset = 0;
-      } else if (textAnchor === 'end') {
-        xOffset = -w / 2;
-      }
 
       if (el.gradient?.enabled && el.gradient.stops && el.gradient.stops.length > 0) {
         const gradId = `grad_${index}`;
         const angle = el.gradient.angle || 90;
 
-        // Local center (relative to text origin 0,0 which is now always the visual center)
-        const cx = 0;
+        // Local center calculation relative to the text anchor point
+        // If anchor is start (left), center is at w/2
+        // If anchor is middle (center), center is at 0
+        // If anchor is end (right), center is at -w/2
+        let cx = 0;
+        if (textAnchor === 'start') cx = w / 2;
+        else if (textAnchor === 'end') cx = -w / 2;
+        
         const cy = h / 2;
 
         const rad = ((angle - 90) * Math.PI) / 180;
@@ -190,9 +188,10 @@ export async function GET(request: Request) {
       }
 
       let textContent = '';
+      const decorationAttr = el.underline ? 'text-decoration="underline"' : '';
 
       if (lines.length === 1) {
-        textContent = safeText;
+        textContent = `<tspan ${decorationAttr}>${safeText}</tspan>`;
       } else {
         const lineHeight = 1.2; // em
         textContent = lines.map((line: string, i: number) => {
@@ -200,7 +199,7 @@ export async function GET(request: Request) {
           // Ensure empty lines render by adding a zero-width space
           const content = line === '' ? '&#8203;' : line;
           // For multi-line text, we need to reset x to 0 for each line so they align correctly relative to the anchor
-          return `<tspan x="0" dy="${dy}em">${content}</tspan>`;
+          return `<tspan x="0" dy="${dy}em" ${decorationAttr}>${content}</tspan>`;
         }).join('');
       }
 
@@ -216,9 +215,8 @@ export async function GET(request: Request) {
             font-weight="${fontWeight}" 
             font-style="${fontStyle}"
             fill="${fill}"
-            text-decoration="${textDecoration}"
             ${strokeAttr}
-            style="text-decoration: ${textDecoration}; ${shadowStyle}"
+            style="${shadowStyle}"
             xml:space="preserve"
             >
             ${textContent}

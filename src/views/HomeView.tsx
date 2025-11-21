@@ -1,3 +1,15 @@
+/**
+ * HomeView Component
+ * 
+ * This is the main presentation component for the application.
+ * It implements the UI layout including:
+ * - Header: Navigation, Auth controls, Save/Preview actions.
+ * - Sidebar: Widget management, Canvas settings, Element properties.
+ * - Main Area: The interactive CanvasEditor and Zoom controls.
+ * 
+ * This component is "dumb" in that it relies on props for all state and actions,
+ * following the Presentational Component pattern.
+ */
 import React from 'react';
 import dynamic from 'next/dynamic';
 import { Icons } from '@/views/components/Icons';

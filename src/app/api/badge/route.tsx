@@ -1,3 +1,13 @@
+/**
+ * Badge Generation API Route
+ * 
+ * This route handles the generation of the SVG badge.
+ * It acts as a Controller in the MVC pattern:
+ * 1. Receives the request (with ID or query params).
+ * 2. Fetches data using `WidgetModel`.
+ * 3. Renders the SVG using `BadgeSvgView`.
+ * 4. Returns the SVG response with appropriate headers.
+ */
 export const dynamic = 'force-dynamic';
 
 import { WidgetModel } from '@/models/WidgetModel';

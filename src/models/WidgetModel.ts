@@ -1,3 +1,15 @@
+/**
+ * WidgetModel
+ * 
+ * This class encapsulates all data access logic for Widgets.
+ * It interacts directly with Firebase Firestore to:
+ * - Fetch widgets by User ID.
+ * - Fetch a single widget by ID.
+ * - Save (create or update) widgets.
+ * - Delete widgets.
+ * 
+ * It serves as the "Model" in the MVC architecture.
+ */
 import { collection, addDoc, getDocs, query, where, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 import { WidgetData } from './types';

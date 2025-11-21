@@ -1,3 +1,13 @@
+/**
+ * Main Application Entry Point
+ * 
+ * This file serves as the root page for the application. It is responsible for:
+ * 1. Initializing all global state hooks (Auth, Editor, Widget, History).
+ * 2. Coordinating data flow between the state layer and the view layer.
+ * 3. Handling initial data fetching and URL parameter parsing.
+ * 
+ * It renders the `HomeView` component, passing down all necessary state and handlers.
+ */
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useHistory } from '@/controllers/useHistory';

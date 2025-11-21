@@ -1,3 +1,11 @@
+/**
+ * useEditorState Hook
+ * 
+ * Manages the visual state of the editor canvas.
+ * This includes dimensions, themes, background styles, zoom level, and grid visibility.
+ * It provides a centralized store for all UI-related configuration that doesn't
+ * directly affect the content elements themselves.
+ */
 import { useState } from 'react';
 
 export function useEditorState() {

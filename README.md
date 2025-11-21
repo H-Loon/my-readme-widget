@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 # My Readme Widget
 
 A powerful, interactive editor to create stunning dynamic widgets for your GitHub profile README.
@@ -35,3 +37,7 @@ https://my-readme-widget.vercel.app
 ## Community
 
 Have fun with it! I would love to hear your feedback. Feel free to fork the project and open issues.
+
+## ⚖️ License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

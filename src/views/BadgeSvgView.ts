@@ -1,3 +1,15 @@
+/**
+ * BadgeSvgView
+ * 
+ * This class is responsible for rendering the SVG string for the widget.
+ * It takes the raw widget data and produces the final SVG markup.
+ * 
+ * Features:
+ * - Renders text with custom fonts, colors, gradients, and shadows.
+ * - Renders images (fetching and converting to Base64).
+ * - Generates dynamic backgrounds (gradients, blobs, custom images).
+ * - Handles server-side rendering logic for the badge.
+ */
 export class BadgeSvgView {
   static async render(data: any): Promise<string> {
     const {

@@ -1,4 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# My Readme Widget
+
+A powerful, interactive editor to create stunning dynamic widgets for your GitHub profile README.
+
+![Widget](https://my-readme-widget.vercel.app/api/badge?id=outcSEh6gf3b0uq6fBPf)
+
+## Features
+
+- 🎨 **Visual Editor**: Drag-and-drop interface to design your widget.
+- ✍️ **Rich Text**: Add text with custom fonts, colors, gradients, and neon effects.
+- 🖼️ **Image Support**: Embed images, badges, and icons (supports `skillicons.dev`, `shields.io`, etc.).
+- 🌌 **Dynamic Backgrounds**: Choose from presets like "Ethereal" with animated blobs, or use custom gradients and images.
+- 📐 **Precision Tools**: Grid snapping and alignment tools for pixel-perfect designs.
+- 💾 **Save & Share**: Save your designs (via Firebase) and get a dynamic URL to use in your markdown.
+
+## Tech Stack
+
+- **Framework**: [Next.js](https://nextjs.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Canvas**: [Konva.js](https://konvajs.org/) / [React Konva](https://github.com/konvajs/react-konva)
+- **Backend/Auth**: Firebase (Firestore & Auth)
+- **Deployment**: Vercel
 
 ## Getting Started
 
@@ -8,29 +29,13 @@ First, run the development server:
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Sign in with Google to save your widgets.
+2. Use the sidebar to add text or images.
+3. Customize appearance using the properties panel.
+4. Click "Copy Markdown" to get the code for your GitHub README.

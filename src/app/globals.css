@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -27,8 +28,8 @@ body {
 
 /* Custom Scrollbar Styles */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -36,13 +37,13 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b; /* slate-800 */
-  border-radius: 5px;
+  background: #334155; /* slate-700 */
+  border-radius: 4px;
   border: 2px solid #020617; /* slate-950 */
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155; /* slate-700 */
+  background: #475569; /* slate-600 */
 }
 
 /* Utility class for specific containers */
@@ -122,4 +123,15 @@ body {
 .custom-range::-moz-range-thumb:hover {
   transform: scale(1.1);
   background-color: #60a5fa;
+}
+
+/* Hide default spin buttons for number inputs */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
 }

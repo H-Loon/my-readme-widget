@@ -1,126 +1,32 @@
-"use client";
-
+'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { db, auth } from '@/lib/firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "firebase/auth";
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc, setDoc } from "firebase/firestore";
 import dynamic from 'next/dynamic';
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, getDocs, query, where, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "firebase/auth";
+import { Icons } from '@/components/Icons';
+import { NumberInput } from '@/components/NumberInput';
 
-const CanvasEditor = dynamic(() => import('@/components/CanvasEditor'), { ssr: false });
-
-// --- ICONS ---
-const Icons = {
-  Github: ({ className }: { className?: string }) => <svg suppressHydrationWarning viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0 3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>,
-  Copy: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
-  Check: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"/></svg>,
-  Plus: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-  Trash: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>,
-  Bold: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>,
-  Italic: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>,
-  Underline: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" x2="20" y1="21" y2="21"/></svg>,
-  Move: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>,
-  Image: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>,
-  Scale: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 3 9 15"/><path d="M12 3H3v18h18v-9"/><path d="M16 3h5v5"/><path d="M14 10l7-7"/></svg>,
-  Max: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>,
-  Fit: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>,
-  ExternalLink: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
-  Save: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
-  User: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  Pencil: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>,
-  Undo: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>,
-  Redo: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>,
-  Swap: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>,
-  Grid: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>,
-  AlignLeft: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>,
-  AlignCenter: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>,
-  AlignRight: ({ size, className }: { size?: number; className?: string }) => <svg suppressHydrationWarning width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
+// Firebase Config
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-const Switch = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    onClick={() => onChange(!checked)}
-    className={`
-      relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent 
-      transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 
-      focus-visible:ring-blue-600 focus-visible:ring-offset-2 
-      ${checked ? 'bg-blue-600' : 'bg-slate-700'}
-    `}
-  >
-    <span
-      aria-hidden="true"
-      className={`
-        pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 
-        transition duration-200 ease-in-out
-        ${checked ? 'translate-x-4' : 'translate-x-0'}
-      `}
-    />
-  </button>
-);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const CanvasEditor = dynamic(() => import('@/components/CanvasEditor'), { ssr: false });
 
 interface GradientStop {
   offset: number;
   color: string;
 }
-
-const GradientSlider = ({ stops, onChange }: { stops: GradientStop[]; onChange: (stops: GradientStop[]) => void }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseDown = (e: React.MouseEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const container = containerRef.current;
-    if (!container) return;
-
-    const rect = container.getBoundingClientRect();
-    
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const x = moveEvent.clientX - rect.left;
-      const percentage = Math.max(0, Math.min(1, x / rect.width));
-      
-      const newStops = [...stops];
-      newStops[index] = { ...newStops[index], offset: percentage };
-      onChange(newStops);
-    };
-
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
-
-  // Create a sorted version for the background preview
-  const sortedStops = [...stops].sort((a, b) => a.offset - b.offset);
-  const gradient = `linear-gradient(to right, ${sortedStops.map(s => `${s.color} ${s.offset * 100}%`).join(', ')})`;
-
-  return (
-    <div className="relative h-8 flex items-center select-none cursor-pointer" ref={containerRef}>
-      <div 
-        className="absolute inset-x-0 h-3 rounded-full ring-1 ring-slate-700"
-        style={{ background: gradient }}
-        onMouseDown={(e) => {
-           // Optional: Click to add stop logic could go here
-        }}
-      />
-      {stops.map((stop, idx) => (
-        <div
-          key={idx}
-          onMouseDown={(e) => handleMouseDown(e, idx)}
-          className="absolute w-5 h-5 -ml-2.5 rounded-full border-2 border-white shadow-md cursor-grab active:cursor-grabbing hover:scale-110 transition-transform z-10"
-          style={{ 
-            left: `${stop.offset * 100}%`, 
-            backgroundColor: stop.color 
-          }}
-        />
-      ))}
-    </div>
-  );
-};
 
 interface CanvasElement {
   id: string;
@@ -135,6 +41,7 @@ interface CanvasElement {
   underline?: boolean;
   align?: 'start' | 'middle' | 'end';
   fontFamily?: string;
+  shadowEnabled?: boolean;
   shadowColor?: string;
   shadowBlur?: number;
   shadowOffsetX?: number;
@@ -158,39 +65,82 @@ interface CanvasElement {
   fit?: 'contain' | 'cover' | 'stretch';
 }
 
+const Switch = ({ checked, onChange }: { checked: boolean; onChange: (c: boolean) => void }) => (
+  <button
+    onClick={() => onChange(!checked)}
+    className={`w-9 h-5 rounded-full relative transition-colors border ${checked ? 'bg-blue-600 border-blue-500' : 'bg-slate-900 border-slate-700'}`}
+  >
+    <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-all shadow-sm ${checked ? 'left-4' : 'left-0.5'}`} />
+  </button>
+);
+
+const GradientSlider = ({ stops, onChange }: { stops: GradientStop[]; onChange: (stops: GradientStop[]) => void }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = (e: React.MouseEvent, index: number) => {
+    const move = (moveEvent: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      let offset = (moveEvent.clientX - rect.left) / rect.width;
+      offset = Math.max(0, Math.min(1, offset));
+      const newStops = [...stops];
+      newStops[index] = { ...newStops[index], offset };
+      onChange(newStops.sort((a, b) => a.offset - b.offset));
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  return (
+    <div ref={containerRef} className="h-4 bg-slate-900 border border-slate-800 rounded-md relative cursor-pointer">
+      <div
+        className="absolute inset-0 rounded-md opacity-80"
+        style={{
+          background: `linear-gradient(to right, ${stops.map(s => `${s.color} ${s.offset * 100}%`).join(', ')})`
+        }}
+      />
+      {stops.map((stop, i) => (
+        <div
+          key={i}
+          onMouseDown={(e) => handleMouseDown(e, i)}
+          className="absolute -top-1 w-6 h-6 -ml-3 bg-white border-2 border-slate-900 rounded-full cursor-ew-resize hover:scale-110 transition-transform shadow-lg z-10"
+          style={{ left: `${stop.offset * 100}%` }}
+        />
+      ))}
+    </div>
+  );
+};
+
 export default function Home() {
-  const [user, setUser] = useState<any>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [savedId, setSavedId] = useState<string | null>(null);
-  
-  const [theme, setTheme] = useState('blue');
-  const [style, setStyle] = useState('ethereal');
+  const [elements, setElements] = useState<CanvasElement[]>([
+    { id: '1', type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, color: '#334155', size: 48, bold: true, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowEnabled: false, shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
+    { id: '2', type: 'text', text: "Building things for the web", x: 700, y: 260, color: '#64748b', size: 24, bold: false, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowEnabled: false, shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
+  ]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [canvasWidth, setCanvasWidth] = useState(1400);
+  const [canvasHeight, setCanvasHeight] = useState(600);
+  const [theme, setTheme] = useState('transparent');
+  const [style, setStyle] = useState('transparent');
   const [blobCount, setBlobCount] = useState(5);
   const [customFrom, setCustomFrom] = useState('#6366f1');
   const [customTo, setCustomTo] = useState('#ec4899');
   const [bgImage, setBgImage] = useState('');
-  const [bgFit, setBgFit] = useState<'cover' | 'contain' | 'stretch'>('cover');
-  const [canvasWidth, setCanvasWidth] = useState(1400);
-  const [canvasHeight, setCanvasHeight] = useState(600);
+  const [bgFit, setBgFit] = useState<'cover' | 'contain'>('cover');
+  const [showGrid, setShowGrid] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const [widgetName, setWidgetName] = useState('Untitled Widget');
-  const [showGrid, setShowGrid] = useState(false);
-
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [savedWidgets, setSavedWidgets] = useState<any[]>([]);
-
-  const [elements, setElements] = useState<CanvasElement[]>([
-    { id: '1', type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, color: '#334155', size: 48, bold: true, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
-    { id: '2', type: 'text', text: "Building things for the web", x: 700, y: 260, color: '#64748b', size: 24, bold: false, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
-  ]);
-  const [selectedId, setSelectedId] = useState<string | null>('1');
-  
-  const [copied, setCopied] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
-  const [fontSearch, setFontSearch] = useState('');
   const [showFontList, setShowFontList] = useState(false);
+  const [fontSearch, setFontSearch] = useState('');
   const [googleFonts, setGoogleFonts] = useState<string[]>([]);
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     fetch('https://api.fontsource.org/v1/fonts')
@@ -207,64 +157,64 @@ export default function Home() {
   const [historyStep, setHistoryStep] = useState(0);
 
   const handleElementsChange = (newElements: CanvasElement[], saveHistory = true) => {
-      setElements(newElements);
-      if (saveHistory) {
-          const newHistory = history.slice(0, historyStep + 1);
-          newHistory.push(newElements);
-          setHistory(newHistory);
-          setHistoryStep(newHistory.length - 1);
-      }
+    setElements(newElements);
+    if (saveHistory) {
+      const newHistory = history.slice(0, historyStep + 1);
+      newHistory.push(newElements);
+      setHistory(newHistory);
+      setHistoryStep(newHistory.length - 1);
+    }
   };
 
   const undo = () => {
-      if (historyStep > 0) {
-          const prevStep = historyStep - 1;
-          setElements(history[prevStep]);
-          setHistoryStep(prevStep);
-      }
+    if (historyStep > 0) {
+      const prevStep = historyStep - 1;
+      setElements(history[prevStep]);
+      setHistoryStep(prevStep);
+    }
   };
 
   const redo = () => {
-      if (historyStep < history.length - 1) {
-          const nextStep = historyStep + 1;
-          setElements(history[nextStep]);
-          setHistoryStep(nextStep);
-      }
+    if (historyStep < history.length - 1) {
+      const nextStep = historyStep + 1;
+      setElements(history[nextStep]);
+      setHistoryStep(nextStep);
+    }
   };
 
   useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-          if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-              e.preventDefault();
-              if (e.shiftKey) {
-                  redo();
-              } else {
-                  undo();
-              }
-          }
-          if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-              e.preventDefault();
-              redo();
-          }
-      };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
 
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [history, historyStep]);
 
   const fetchWidgets = async (currentUser: any) => {
     if (!currentUser) {
-        setSavedWidgets([]);
-        return;
+      setSavedWidgets([]);
+      return;
     }
     try {
-        const q = query(collection(db, "widgets"), where("uid", "==", currentUser.uid));
-        const querySnapshot = await getDocs(q);
-        const widgets = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        widgets.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-        setSavedWidgets(widgets);
+      const q = query(collection(db, "widgets"), where("uid", "==", currentUser.uid));
+      const querySnapshot = await getDocs(q);
+      const widgets = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      widgets.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setSavedWidgets(widgets);
     } catch (e) {
-        console.error("Error fetching widgets", e);
+      console.error("Error fetching widgets", e);
     }
   };
 
@@ -315,16 +265,16 @@ export default function Home() {
         bgImage,
         bgFit
       };
-      
+
       if (savedId) {
-          await setDoc(doc(db, "widgets", savedId), widgetData, { merge: true });
-          alert("Widget updated!");
-          fetchWidgets(user);
+        await setDoc(doc(db, "widgets", savedId), widgetData, { merge: true });
+        alert("Widget updated!");
+        fetchWidgets(user);
       } else {
-          const docRef = await addDoc(collection(db, "widgets"), widgetData);
-          setSavedId(docRef.id);
-          alert("Saved! Short link generated.");
-          fetchWidgets(user);
+        const docRef = await addDoc(collection(db, "widgets"), widgetData);
+        setSavedId(docRef.id);
+        alert("Saved! Short link generated.");
+        fetchWidgets(user);
       }
     } catch (e) {
       console.error("Error saving document: ", e);
@@ -333,44 +283,44 @@ export default function Home() {
   };
 
   const deleteWidget = async (id: string, e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (!confirm("Are you sure you want to delete this widget?")) return;
-      try {
-          await deleteDoc(doc(db, "widgets", id));
-          setSavedWidgets(prev => prev.filter(w => w.id !== id));
-          if (savedId === id) {
-              setSavedId(null);
-          }
-      } catch (e) {
-          console.error("Error deleting", e);
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this widget?")) return;
+    try {
+      await deleteDoc(doc(db, "widgets", id));
+      setSavedWidgets(prev => prev.filter(w => w.id !== id));
+      if (savedId === id) {
+        setSavedId(null);
       }
+    } catch (e) {
+      console.error("Error deleting", e);
+    }
   };
 
   const loadWidget = (widget: any) => {
-      setElements(widget.elements || []);
-      setCanvasWidth(widget.width || 1400);
-      setCanvasHeight(widget.height || 600);
-      setTheme(widget.theme || 'blue');
-      setStyle(widget.style || 'ethereal');
-      setBlobCount(widget.blobCount || 5);
-      setCustomFrom(widget.customFrom || '#6366f1');
-      setCustomTo(widget.customTo || '#ec4899');
-      setBgImage(widget.bgImage || '');
-      setBgFit(widget.bgFit || 'cover');
-      setWidgetName(widget.name || 'Untitled Widget');
-      setSavedId(widget.id);
+    setElements(widget.elements || []);
+    setCanvasWidth(widget.width || 1400);
+    setCanvasHeight(widget.height || 600);
+    setTheme(widget.theme || 'blue');
+    setStyle(widget.style || 'ethereal');
+    setBlobCount(widget.blobCount || 5);
+    setCustomFrom(widget.customFrom || '#6366f1');
+    setCustomTo(widget.customTo || '#ec4899');
+    setBgImage(widget.bgImage || '');
+    setBgFit(widget.bgFit || 'cover');
+    setWidgetName(widget.name || 'Untitled Widget');
+    setSavedId(widget.id);
   };
 
   const createNew = () => {
-      setSavedId(null);
-      setWidgetName('Untitled Widget');
-      setElements([
-        { id: '1', type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, color: '#334155', size: 48, bold: true, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
-        { id: '2', type: 'text', text: "Building things for the web", x: 700, y: 260, color: '#64748b', size: 24, bold: false, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
-      ]);
-      setTheme('blue');
-      setStyle('ethereal');
-      setBgImage('');
+    setSavedId(null);
+    setWidgetName('Untitled Widget');
+    setElements([
+      { id: '1', type: 'text', text: "Hi, I'm Developer", x: 700, y: 200, color: '#334155', size: 48, bold: true, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowEnabled: false, shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
+      { id: '2', type: 'text', text: "Building things for the web", x: 700, y: 260, color: '#64748b', size: 24, bold: false, underline: false, align: 'middle', fontFamily: 'sans-serif', shadowEnabled: false, shadowOffsetX: 0, shadowOffsetY: 0, shadowBlur: 0, shadowColor: 'transparent', gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] }, neon: { enabled: false, color: '#00ff00', intensity: 20 } },
+    ]);
+    setTheme('transparent');
+    setStyle('transparent');
+    setBgImage('');
   };
 
   const handleMouseDown = (e: React.MouseEvent, id: string) => {
@@ -378,36 +328,61 @@ export default function Home() {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-     // Legacy handler - no longer needed with Konva
+    // Legacy handler - no longer needed with Konva
   };
 
   const handleMouseUp = () => {
-     // Legacy handler - no longer needed with Konva
+    // Legacy handler - no longer needed with Konva
   };
-  
+
   const fitCanvasToContent = () => {
     if (elements.length > 0) {
-       const lowestY = Math.max(...elements.map(e => e.y + (e.type === 'image' ? (e.height || 0)/2 : 0)));
-       setCanvasHeight(Math.max(600, Math.round(lowestY + 150)));
+      const lowestY = Math.max(...elements.map(e => e.y + (e.type === 'image' ? (e.height || 0) / 2 : 0)));
+      setCanvasHeight(Math.max(600, Math.round(lowestY + 150)));
     }
+  };
+
+  const handleAlignChange = (newAlign: 'start' | 'middle' | 'end') => {
+    if (!selectedId) return;
+
+    setElements(prev => prev.map(el => {
+      if (el.id === selectedId && el.type === 'text') {
+        const width = el.width || (el.text?.length || 0) * (el.size || 16) * 0.6;
+        const oldAlign = el.align || 'start';
+
+        if (oldAlign === newAlign) return el;
+
+        let visualLeft = el.x;
+        if (oldAlign === 'middle') visualLeft = el.x - width / 2;
+        if (oldAlign === 'end') visualLeft = el.x - width;
+
+        let newX = visualLeft;
+        if (newAlign === 'middle') newX = visualLeft + width / 2;
+        if (newAlign === 'end') newX = visualLeft + width;
+
+        return { ...el, align: newAlign, x: newX };
+      }
+      return el;
+    }));
   };
 
   const addText = () => {
     const newId = Date.now().toString();
-    setElements([...elements, { 
-      id: newId, 
-      type: 'text', 
-      text: "New Text", 
-      x: canvasWidth / 2, 
-      y: canvasHeight / 2, 
-      color: '#334155', 
-      size: 32, 
-      bold: false, 
+    setElements([...elements, {
+      id: newId,
+      type: 'text',
+      text: "New Text",
+      x: canvasWidth / 2,
+      y: canvasHeight / 2,
+      color: '#334155',
+      size: 32,
+      bold: false,
       italic: false,
-      underline: false, 
+      underline: false,
       align: 'middle',
       fontFamily: 'sans-serif',
-      shadowColor: 'transparent',
+      shadowEnabled: false,
+      shadowColor: '#000000',
       shadowBlur: 0,
       shadowOffsetX: 2,
       shadowOffsetY: 2,
@@ -420,7 +395,7 @@ export default function Home() {
   const resolveImageDimensions = (src: string, id: string) => {
     const img = new Image();
     img.onload = () => {
-      const maxW = 250; 
+      const maxW = 250;
       const ratio = img.width / img.height;
       let newW = img.width;
       let newH = img.height;
@@ -432,11 +407,11 @@ export default function Home() {
 
       setElements(prev => prev.map(el => {
         if (el.id === id) {
-          return { 
-            ...el, 
-            width: Math.round(newW), 
+          return {
+            ...el,
+            width: Math.round(newW),
             height: Math.round(newH),
-            scale: 1.0 
+            scale: 1.0
           };
         }
         return el;
@@ -447,10 +422,11 @@ export default function Home() {
 
   const addImage = () => {
     const newId = Date.now().toString();
-    const startX = (canvasWidth / 2) - 50; 
-    const startY = (canvasHeight / 2) + 50;
+    // Ensure start position aligns with 20px grid (700 - 60 = 640, 300 + 60 = 360)
+    const startX = (canvasWidth / 2) - 60;
+    const startY = (canvasHeight / 2) + 60;
     const defaultSrc = "https://img.shields.io/badge/Badge-Example-blue";
-    
+
     setElements([...elements, { id: newId, type: 'image', src: defaultSrc, x: startX, y: startY, width: 100, height: 100, scale: 1.0, fit: 'contain' }]);
     setSelectedId(newId);
     resolveImageDimensions(defaultSrc, newId);
@@ -460,11 +436,11 @@ export default function Home() {
     if (!fontFamily) return;
     const linkId = `font-${fontFamily.replace(/\s+/g, '-')}`;
     if (!document.getElementById(linkId)) {
-        const link = document.createElement('link');
-        link.id = linkId;
-        link.href = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, '+')}&display=swap`;
-        link.rel = 'stylesheet';
-        document.head.appendChild(link);
+      const link = document.createElement('link');
+      link.id = linkId;
+      link.href = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, '+')}&display=swap`;
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
     }
   };
 
@@ -472,18 +448,18 @@ export default function Home() {
     let finalValue = value;
     // Auto-fix github-readme-stats URLs to ensure they work in Canvas
     if (key === 'src' && typeof value === 'string') {
-        if (value.includes('github-readme-stats.vercel.app') && !value.includes('disable_animations')) {
-            finalValue += value.includes('?') ? '&disable_animations=true' : '?disable_animations=true';
-        }
+      if (value.includes('github-readme-stats.vercel.app') && !value.includes('disable_animations')) {
+        finalValue += value.includes('?') ? '&disable_animations=true' : '?disable_animations=true';
+      }
     }
 
     if (key === 'fontFamily') {
-        loadWebFont(value);
+      loadWebFont(value);
     }
 
     setElements(prev => prev.map(el => el.id === selectedId ? { ...el, [key]: finalValue } : el));
     if (key === 'src' && selectedId) {
-       resolveImageDimensions(finalValue, selectedId);
+      resolveImageDimensions(finalValue, selectedId);
     }
   };
 
@@ -512,17 +488,17 @@ export default function Home() {
   const fitToWidth = () => {
     setElements(prev => prev.map(el => {
       if (el.id === selectedId && el.type === 'image') {
-         const newWidth = canvasWidth;
-         const ratio = newWidth / (el.width || 1);
-         const newHeight = Math.round((el.height || 1) * ratio);
-         const newScale = (el.scale || 1) * ratio;
-         return { 
-            ...el, 
-            width: newWidth, 
-            height: newHeight, 
-            scale: newScale,
-            x: 0 
-         };
+        const newWidth = canvasWidth;
+        const ratio = newWidth / (el.width || 1);
+        const newHeight = Math.round((el.height || 1) * ratio);
+        const newScale = (el.scale || 1) * ratio;
+        return {
+          ...el,
+          width: newWidth,
+          height: newHeight,
+          scale: newScale,
+          x: 0
+        };
       }
       return el;
     }));
@@ -531,17 +507,17 @@ export default function Home() {
   const fitToHeight = () => {
     setElements(prev => prev.map(el => {
       if (el.id === selectedId && el.type === 'image') {
-         const newHeight = canvasHeight;
-         const ratio = newHeight / (el.height || 1);
-         const newWidth = Math.round((el.width || 1) * ratio);
-         const newScale = (el.scale || 1) * ratio;
-         return { 
-            ...el, 
-            height: newHeight, 
-            width: newWidth,
-            scale: newScale,
-            y: 0 
-         };
+        const newHeight = canvasHeight;
+        const ratio = newHeight / (el.height || 1);
+        const newWidth = Math.round((el.width || 1) * ratio);
+        const newScale = (el.scale || 1) * ratio;
+        return {
+          ...el,
+          width: newWidth,
+          height: newHeight,
+          scale: newScale,
+          y: 0
+        };
       }
       return el;
     }));
@@ -575,626 +551,689 @@ export default function Home() {
           </div>
 
           <div className="flex-1 max-w-xl flex items-center gap-4">
-             <div className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-1 border border-slate-800">
-                <button 
-                    onClick={undo} 
-                    disabled={historyStep === 0}
-                    className="p-2 hover:bg-slate-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    title="Undo (Ctrl+Z)"
-                >
-                    <Icons.Undo size={18} />
-                </button>
-                <button 
-                    onClick={redo} 
-                    disabled={historyStep === history.length - 1}
-                    className="p-2 hover:bg-slate-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    title="Redo (Ctrl+Y)"
-                >
-                    <Icons.Redo size={18} />
-                </button>
-             </div>
-             
-             <div className="h-6 w-px bg-slate-800" />
-
-             <div className="w-48 relative group">
-                <input
-                  type="text"
-                  value={widgetName}
-                  onChange={(e) => setWidgetName(e.target.value)}
-                  className="w-full bg-transparent border-none focus:ring-0 text-sm font-medium text-slate-300 placeholder-slate-600 truncate pr-6"
-                  placeholder="Widget Name"
-                />
-                <Icons.Pencil size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-600 group-hover:text-slate-300 transition-colors pointer-events-none" />
-             </div>
+            <div className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-1 border border-slate-800">
+              <button
+                onClick={undo}
+                disabled={historyStep === 0}
+                className="p-2 hover:bg-slate-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Undo (Ctrl+Z)"
+              >
+                <Icons.Undo size={18} />
+              </button>
+              <button
+                onClick={redo}
+                disabled={historyStep === history.length - 1}
+                className="p-2 hover:bg-slate-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Redo (Ctrl+Y)"
+              >
+                <Icons.Redo size={18} />
+              </button>
+            </div>
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={widgetName}
+                onChange={(e) => setWidgetName(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2 text-sm text-slate-200 focus:border-blue-500 outline-none transition-all placeholder:text-slate-600"
+                placeholder="Widget Name"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => {
-                if (confirm("Create new widget? Unsaved changes will be lost.")) {
-                  createNew();
-                }
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition-all border border-slate-700"
+              onClick={() => window.open(getApiUrl(true), '_blank')}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-lg text-sm font-medium transition-colors"
             >
-              <Icons.Plus size={16} />
-              New
+              <Icons.Eye size={16} /> Preview
             </button>
-
-            {user ? (
-               <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-full border border-slate-800">
-                    {user.photoURL ? (
-                        <img src={user.photoURL} alt={user.displayName} className="w-5 h-5 rounded-full" />
-                    ) : (
-                        <Icons.User size={16} className="text-slate-400" />
-                    )}
-                    <span className="text-xs font-medium text-slate-300 max-w-[100px] truncate">{user.displayName}</span>
-                    <div className="w-px h-3 bg-slate-700 mx-1"></div>
-                    <button
-                        onClick={logout}
-                        className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                    >
-                        Sign Out
-                    </button>
-                  </div>
-                  <button
-                    onClick={saveWidget}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-blue-500/20"
-                  >
-                    <Icons.Save size={16} />
-                    Save
-                  </button>
-               </div>
-            ) : (
-               <button
-                onClick={login}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition-all border border-slate-700"
-               >
-                 <Icons.User size={16} />
-                 Sign In to Save
-               </button>
-            )}
-            
-            <div className="h-6 w-px bg-slate-800 mx-2" />
-
             <button
-              disabled={!user}
-              title={!user ? "Sign in to copy markdown" : "Copy Markdown"}
               onClick={() => {
-                if (!user) return;
-                const url = getApiUrl();
-                const markdown = `![Widget](${url})`;
-                navigator.clipboard.writeText(markdown);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
+                navigator.clipboard.writeText(getApiUrl());
+                alert("Copied to clipboard!");
               }}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all shadow-lg ${
-                !user 
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' 
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20'
-              }`}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-lg text-sm font-medium transition-colors"
             >
-              {copied ? <Icons.Check size={16} /> : <Icons.Copy size={16} />}
-              {copied ? 'Copied!' : 'Copy Markdown'}
+              <Icons.Copy size={16} /> Copy URL
             </button>
-            
-            <a
-              href={getApiUrl(true)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition-all border border-slate-700"
+            <button
+              onClick={saveWidget}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium shadow-lg shadow-blue-500/20 transition-all"
             >
-              <Icons.ExternalLink size={16} />
-              Preview
-            </a>
+              <Icons.Save size={16} /> Save
+            </button>
+            {user ? (
+              <div className="flex items-center gap-3 pl-4 border-l border-slate-800">
+                <img src={user.photoURL} alt={user.displayName} className="w-8 h-8 rounded-full border border-slate-700" />
+                <button onClick={logout} className="text-xs text-slate-400 hover:text-slate-200 transition-colors">Logout</button>
+              </div>
+            ) : (
+              <button onClick={login} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-lg text-sm font-medium transition-colors">
+                <Icons.User size={16} /> Login
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       <main className="flex h-[calc(100vh-64px)]">
         {/* Sidebar */}
-        <aside className="w-80 border-r border-slate-800 bg-slate-900/30 overflow-y-auto custom-scrollbar p-6 space-y-8">
-          
-          {/* Saved Widgets List */}
-          {user && savedWidgets.length > 0 && (
+        <aside className="w-80 bg-slate-900/50 border-r border-slate-800 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 space-y-6">
+
+          {/* Saved Widgets */}
+          {savedWidgets.length > 0 && (
             <div className="space-y-3">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Saved Widgets</h3>
-                <div className="space-y-1">
-                    {savedWidgets.map(w => (
-                        <div key={w.id} className={`group flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${savedId === w.id ? 'bg-blue-500/10 text-blue-400' : 'hover:bg-slate-800 text-slate-400'}`}>
-                            <span className="text-sm truncate flex-1" onClick={() => loadWidget(w)}>{w.name || 'Untitled'}</span>
-                            <button onClick={(e) => { e.stopPropagation(); deleteWidget(w.id, e); }} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-opacity">
-                                <Icons.Trash size={14} />
-                            </button>
-                        </div>
-                    ))}
-                </div>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Saved Widgets</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={createNew}
+                  className="w-full flex items-center gap-2 px-3 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-md hover:bg-blue-500/20 transition-colors text-xs font-medium"
+                >
+                  <Icons.Plus size={14} /> New Widget
+                </button>
+                {savedWidgets.map(w => (
+                  <div
+                    key={w.id}
+                    onClick={() => loadWidget(w)}
+                    className={`group flex items-center justify-between px-3 py-2 rounded-md border transition-all cursor-pointer ${
+                      savedId === w.id
+                        ? 'bg-blue-600/20 border-blue-500/50'
+                        : 'bg-slate-800/50 hover:bg-slate-800 border-transparent hover:border-slate-700'
+                    }`}
+                  >
+                    <span className={`text-xs font-medium truncate ${savedId === w.id ? 'text-blue-200' : 'text-slate-300'}`}>
+                      {w.name}
+                    </span>
+                    <button
+                      onClick={(e) => deleteWidget(w.id, e)}
+                      className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-opacity"
+                    >
+                      <Icons.Trash size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Theme & Style */}
+          {/* Canvas Settings */}
           <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Appearance</h3>
-            
-            <div className="grid grid-cols-2 gap-2">
-                {['blue', 'purple', 'green', 'orange', 'custom'].map(t => (
-                    <button
-                        key={t}
-                        onClick={() => setTheme(t)}
-                        className={`px-3 py-2 rounded-md text-sm font-medium capitalize transition-all border ${theme === t ? 'bg-slate-800 border-blue-500 text-white shadow-sm' : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                    >
-                        {t}
-                    </button>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Canvas Settings</h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-slate-400">Width</label>
+                <NumberInput
+                  value={canvasWidth}
+                  onChange={(val) => setCanvasWidth(val)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-slate-400">Height</label>
+                <NumberInput
+                  value={canvasHeight}
+                  onChange={(val) => setCanvasHeight(val)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <button onClick={fitCanvasToContent} className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-md text-xs font-medium transition-colors">
+              <Icons.Fit size={14} /> Fit to Content
+            </button>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-medium text-slate-400">Theme Preset</label>
+              <div className="grid grid-cols-3 gap-2">
+                {['transparent', 'custom'].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTheme(t)}
+                    className={`px-2 py-1.5 rounded text-xs font-medium capitalize border transition-all ${theme === t ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-600 hover:text-slate-300'}`}
+                  >
+                    {t}
+                  </button>
                 ))}
+              </div>
             </div>
 
             {theme === 'custom' && (
-                <div className="grid grid-cols-2 gap-2 p-3 bg-slate-900/50 rounded-lg border border-slate-800">
-                    <div className="space-y-1">
-                        <label className="text-xs text-slate-500">From</label>
-                        <div className="flex items-center gap-2">
-                            <input type="color" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0" />
-                            <span className="text-xs font-mono text-slate-400">{customFrom}</span>
-                        </div>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs text-slate-500">To</label>
-                        <div className="flex items-center gap-2">
-                            <input type="color" value={customTo} onChange={e => setCustomTo(e.target.value)} className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0" />
-                            <span className="text-xs font-mono text-slate-400">{customTo}</span>
-                        </div>
-                    </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-slate-400">From</label>
+                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-md px-2 py-1.5">
+                    <input type="color" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0" />
+                    <span className="text-xs text-slate-300 font-mono">{customFrom}</span>
+                  </div>
                 </div>
-            )}
-
-            {style === 'ethereal' && (
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <label className="text-xs text-slate-500">Blob Count</label>
-                        <input 
-                            type="number" 
-                            min="1" 
-                            max="50" 
-                            value={blobCount} 
-                            onChange={(e) => setBlobCount(Math.max(1, Math.min(50, Number(e.target.value))))}
-                            className="w-12 bg-slate-900 border border-slate-800 rounded px-1 text-xs text-right text-slate-300 focus:border-blue-500 outline-none"
-                        />
-                    </div>
-                    <input 
-                        type="range" 
-                        min="1" 
-                        max="50" 
-                        value={blobCount} 
-                        onChange={(e) => setBlobCount(Number(e.target.value))}
-                        className="w-full custom-range"
-                    />
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-slate-400">To</label>
+                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-md px-2 py-1.5">
+                    <input type="color" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0" />
+                    <span className="text-xs text-slate-300 font-mono">{customTo}</span>
+                  </div>
                 </div>
+              </div>
             )}
 
             <div className="space-y-2">
-                <label className="text-xs text-slate-500">Background Image URL</label>
-                <input 
-                    type="text" 
-                    value={bgImage} 
-                    onChange={(e) => setBgImage(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
-                />
-                {bgImage && (
-                    <div className="flex gap-2 mt-2">
-                        {['cover', 'contain', 'stretch'].map((fit) => (
-                            <button
-                                key={fit}
-                                onClick={() => setBgFit(fit as any)}
-                                className={`flex-1 py-1 text-xs rounded border capitalize ${bgFit === fit ? 'bg-blue-500/20 border-blue-500 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                            >
-                                {fit}
-                            </button>
-                        ))}
-                    </div>
-                )}
+              <label className="text-[11px] font-medium text-slate-400">Background Style</label>
+              <div className="grid grid-cols-2 gap-2">
+                {['transparent', 'ethereal'].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setStyle(s)}
+                    className={`px-2 py-1.5 rounded text-xs font-medium capitalize border transition-all ${style === s ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-600 hover:text-slate-300'}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Dimensions */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Canvas Size</h3>
-                <button 
-                    onClick={() => setShowGrid(!showGrid)}
-                    className={`p-1 rounded transition-colors ${showGrid ? 'bg-blue-500/20 text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-                    title="Toggle Grid Snapping"
-                >
-                    <Icons.Grid size={16} />
-                </button>
+            {style === 'ethereal' && (
+              <div className="space-y-1.5">
+                <div className="flex justify-between">
+                  <label className="text-[11px] font-medium text-slate-400">Blob Count</label>
+                  <span className="text-[10px] text-slate-500 font-mono">{blobCount}</span>
+                </div>
+                <input
+                  type="range"
+                  min="1" max="10"
+                  value={blobCount}
+                  onChange={(e) => setBlobCount(Number(e.target.value))}
+                  className="w-full custom-range"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-medium text-slate-400">Background Image</label>
+              <input
+                type="text"
+                value={bgImage}
+                onChange={(e) => setBgImage(e.target.value)}
+                placeholder="https://..."
+                className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all placeholder:text-slate-600"
+              />
+              {bgImage && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setBgFit('cover')}
+                    className={`flex-1 py-1.5 text-[10px] font-medium rounded border transition-all ${bgFit === 'cover' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-600'}`}
+                  >
+                    Cover
+                  </button>
+                  <button
+                    onClick={() => setBgFit('contain')}
+                    className={`flex-1 py-1.5 text-[10px] font-medium rounded border transition-all ${bgFit === 'contain' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-600'}`}
+                  >
+                    Contain
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                    <label className="text-xs text-slate-500">Width</label>
-                    <input 
-                        type="number" 
-                        value={canvasWidth} 
-                        onChange={(e) => setCanvasWidth(Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-slate-300 focus:border-blue-500 outline-none"
-                    />
-                </div>
-                <div className="space-y-1">
-                    <label className="text-xs text-slate-500">Height</label>
-                    <input 
-                        type="number" 
-                        value={canvasHeight} 
-                        onChange={(e) => setCanvasHeight(Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-slate-300 focus:border-blue-500 outline-none"
-                    />
-                </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+              <label className="text-[11px] font-medium text-slate-400">Show Grid</label>
+              <Switch checked={showGrid} onChange={setShowGrid} />
             </div>
           </div>
 
           {/* Elements */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Elements</h3>
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Elements</h3>
             <div className="grid grid-cols-2 gap-2">
-                <button onClick={addText} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-all border border-slate-700 hover:border-slate-600">
-                    <Icons.Plus size={16} />
-                    <span className="text-sm font-medium">Add Text</span>
-                </button>
-                <button onClick={addImage} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-all border border-slate-700 hover:border-slate-600">
-                    <Icons.Plus size={16} />
-                    <span className="text-sm font-medium">Add Image / MD</span>
-                </button>
+              <button onClick={addText} className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-lg transition-all text-xs font-medium">
+                <Icons.Plus size={16} /> Add Text
+              </button>
+              <button onClick={addImage} className="flex items-center justify-center gap-2 px-2 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-lg transition-all text-xs font-medium">
+                <Icons.Image size={16} /> Add Image/MD
+              </button>
             </div>
           </div>
 
           {/* Selected Element Properties */}
           {selectedId && (
-            <div className="space-y-4 pt-4 border-t border-slate-800 animate-in fade-in slide-in-from-left-4 duration-200">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider">Selected Element</h3>
-                    <button onClick={deleteSelected} className="text-red-400 hover:text-red-300 p-1 hover:bg-red-400/10 rounded transition-colors">
-                        <Icons.Trash size={14} />
-                    </button>
+            <div className="space-y-4 pt-4 border-t border-slate-800">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Selected Element</h3>
+                <button onClick={deleteSelected} className="text-slate-500 hover:text-red-400 transition-colors">
+                  <Icons.Trash size={16} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-slate-400">X</label>
+                  <NumberInput
+                    value={Math.round(elements.find(el => el.id === selectedId)?.x || 0)}
+                    onChange={(val) => updateSelected('x', val)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                  />
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-slate-400">Y</label>
+                  <NumberInput
+                    value={Math.round(elements.find(el => el.id === selectedId)?.y || 0)}
+                    onChange={(val) => updateSelected('y', val)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                  />
+                </div>
+              </div>
 
-                {elements.find(el => el.id === selectedId)?.type === 'text' && (
-                    <>
-                        <div className="space-y-2">
-                            <label className="text-xs text-slate-500">Content</label>
-                            <textarea 
-                                value={elements.find(el => el.id === selectedId)?.text || ''}
-                                onChange={(e) => updateSelected('text', e.target.value)}
-                                className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-slate-300 focus:border-blue-500 outline-none min-h-[80px] resize-y"
-                            />
+              {elements.find(el => el.id === selectedId)?.type === 'text' && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-medium text-slate-400">Text Content</label>
+                    <textarea
+                      value={elements.find(el => el.id === selectedId)?.text || ''}
+                      onChange={(e) => updateSelected('text', e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none resize-y min-h-[80px] transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-medium text-slate-400">Font Size</label>
+                        <NumberInput
+                          value={elements.find(el => el.id === selectedId)?.size || 16}
+                          onChange={(val) => updateSelected('size', val)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-medium text-slate-400">Color</label>
+                        <div className="flex items-center gap-2 h-[34px]">
+                          <input
+                            type="text"
+                            value={elements.find(el => el.id === selectedId)?.color || '#000000'}
+                            onChange={(e) => updateSelected('color', e.target.value)}
+                            className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
+                          />
+                          <input
+                            type="color"
+                            value={elements.find(el => el.id === selectedId)?.color || '#000000'}
+                            onChange={(e) => updateSelected('color', e.target.value)}
+                            className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0"
+                          />
                         </div>
+                        {/* Document Colors */}
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {Array.from(new Set(elements.filter(el => el.type === 'text' && el.color).map(el => el.color))).map((c: any) => (
+                            <button
+                              key={c}
+                              onClick={() => updateSelected('color', c)}
+                              className="w-5 h-5 rounded border border-slate-700 hover:border-slate-500 hover:scale-110 transition-all"
+                              style={{ backgroundColor: c }}
+                              title={c}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
 
-                        <div className="space-y-2 relative">
-                            <label className="text-xs text-slate-500">Font Family</label>
-                            <div className="relative">
+                    <div className="space-y-1.5 relative">
+                      <label className="text-[11px] font-medium text-slate-400">Font Family</label>
+                      <div
+                        className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 cursor-pointer flex justify-between items-center hover:border-slate-700 transition-all"
+                        onClick={() => setShowFontList(!showFontList)}
+                      >
+                        <span className="truncate">{elements.find(el => el.id === selectedId)?.fontFamily || 'sans-serif'}</span>
+                        <Icons.Move size={12} className="rotate-90 text-slate-500" />
+                      </div>
+                      {showFontList && (
+                        <div className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-slate-800 rounded-md shadow-xl z-50 custom-scrollbar">
+                          <div className="p-2 sticky top-0 bg-slate-900 border-b border-slate-800">
+                            <input
+                              type="text"
+                              value={fontSearch}
+                              onChange={(e) => setFontSearch(e.target.value)}
+                              placeholder="Search fonts..."
+                              className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:border-blue-500 outline-none"
+                              autoFocus
+                            />
+                          </div>
+                          {['sans-serif', 'serif', 'monospace', ...googleFonts]
+                            .filter(f => f.toLowerCase().includes(fontSearch.toLowerCase()))
+                            .map(font => (
+                              <div
+                                key={font}
+                                onClick={() => {
+                                  updateSelected('fontFamily', font);
+                                  setShowFontList(false);
+                                  setFontSearch('');
+                                }}
+                                className="px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 cursor-pointer truncate"
+                                style={{ fontFamily: font }}
+                              >
+                                {font}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-1 bg-slate-900 p-1 rounded-md border border-slate-800">
+                      <button
+                        onClick={() => updateSelected('bold', !elements.find(el => el.id === selectedId)?.bold)}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.bold ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                      >
+                        <Icons.Bold size={16} />
+                      </button>
+                      <button
+                        onClick={() => updateSelected('italic', !elements.find(el => el.id === selectedId)?.italic)}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.italic ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                      >
+                        <Icons.Italic size={16} />
+                      </button>
+                      <button
+                        onClick={() => updateSelected('underline', !elements.find(el => el.id === selectedId)?.underline)}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.underline ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                      >
+                        <Icons.Underline size={16} />
+                      </button>
+                    </div>
+
+                    <div className="flex gap-1 bg-slate-900 p-1 rounded-md border border-slate-800">
+                      <button
+                        onClick={() => handleAlignChange('start')}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.align === 'start' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                      >
+                        <Icons.AlignLeft size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleAlignChange('middle')}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.align === 'middle' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                      >
+                        <Icons.AlignCenter size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleAlignChange('end')}
+                        className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedId)?.align === 'end' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                      >
+                        <Icons.AlignRight size={16} />
+                      </button>
+                    </div>
+
+                    {/* Shadow Controls */}
+                    <div className="space-y-3 pt-2 border-t border-slate-800/50">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-medium text-slate-400">Shadow</label>
+                        <Switch
+                          checked={elements.find(el => el.id === selectedId)?.shadowEnabled || false}
+                          onChange={(checked) => updateSelected('shadowEnabled', checked)}
+                        />
+                      </div>
+                      {elements.find(el => el.id === selectedId)?.shadowEnabled && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-slate-400">Color</label>
+                            <div className="flex items-center gap-2 h-[34px]">
+                              <input
+                                type="text"
+                                value={elements.find(el => el.id === selectedId)?.shadowColor || '#000000'}
+                                onChange={(e) => updateSelected('shadowColor', e.target.value)}
+                                className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
+                              />
+                              <input
+                                type="color"
+                                value={elements.find(el => el.id === selectedId)?.shadowColor || '#000000'}
+                                onChange={(e) => updateSelected('shadowColor', e.target.value)}
+                                className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0 shrink-0"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-slate-400">Blur</label>
+                            <NumberInput
+                              value={elements.find(el => el.id === selectedId)?.shadowBlur || 0}
+                              onChange={(val) => updateSelected('shadowBlur', val)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-slate-400">Offset X</label>
+                            <NumberInput
+                              value={elements.find(el => el.id === selectedId)?.shadowOffsetX || 0}
+                              onChange={(val) => updateSelected('shadowOffsetX', val)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-slate-400">Offset Y</label>
+                            <NumberInput
+                              value={elements.find(el => el.id === selectedId)?.shadowOffsetY || 0}
+                              onChange={(val) => updateSelected('shadowOffsetY', val)}
+                              className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Neon Effect */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-medium text-slate-400">Neon Glow</label>
+                        <Switch
+                          checked={elements.find(el => el.id === selectedId)?.neon?.enabled || false}
+                          onChange={(checked) => {
+                            const el = elements.find(el => el.id === selectedId);
+                            updateSelected('neon', { ...el?.neon, enabled: checked });
+                          }}
+                        />
+                      </div>
+                      {elements.find(el => el.id === selectedId)?.neon?.enabled && (
+                        <div className="space-y-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-slate-400">Glow Color</label>
+                            <div className="flex items-center gap-2 h-[34px]">
+                              <input
+                                type="text"
+                                value={elements.find(el => el.id === selectedId)?.neon?.color || '#00ff00'}
+                                onChange={(e) => {
+                                  const el = elements.find(el => el.id === selectedId);
+                                  updateSelected('neon', { ...el?.neon, color: e.target.value });
+                                }}
+                                className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
+                              />
+                              <input
+                                type="color"
+                                value={elements.find(el => el.id === selectedId)?.neon?.color || '#00ff00'}
+                                onChange={(e) => {
+                                  const el = elements.find(el => el.id === selectedId);
+                                  updateSelected('neon', { ...el?.neon, color: e.target.value });
+                                }}
+                                className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0 shrink-0"
+                              />
+                            </div>
+                          </div>
+                          <div className="col-span-2 space-y-1.5">
+                            <label className="text-[11px] font-medium text-slate-400">Intensity</label>
+                            <input
+                              type="range"
+                              min="1" max="100"
+                              value={elements.find(el => el.id === selectedId)?.neon?.intensity || 20}
+                              onChange={(e) => {
+                                const el = elements.find(el => el.id === selectedId);
+                                updateSelected('neon', { ...el?.neon, intensity: Number(e.target.value) });
+                              }}
+                              className="w-full custom-range"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Gradient */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-medium text-slate-400">Gradient Fill</label>
+                        <Switch
+                          checked={elements.find(el => el.id === selectedId)?.gradient?.enabled || false}
+                          onChange={(checked) => {
+                            const el = elements.find(el => el.id === selectedId);
+                            updateSelected('gradient', { ...el?.gradient, enabled: checked });
+                          }}
+                        />
+                      </div>
+                      {elements.find(el => el.id === selectedId)?.gradient?.enabled && (
+                        <div className="space-y-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-slate-400">Angle ({elements.find(el => el.id === selectedId)?.gradient?.angle}°)</label>
+                            <input
+                              type="range"
+                              min="0" max="360"
+                              value={elements.find(el => el.id === selectedId)?.gradient?.angle || 90}
+                              onChange={(e) => {
+                                const el = elements.find(el => el.id === selectedId);
+                                updateSelected('gradient', { ...el?.gradient, angle: Number(e.target.value) });
+                              }}
+                              className="w-full custom-range"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-medium text-slate-400">Gradient Preview</label>
+                            <GradientSlider
+                              stops={elements.find(el => el.id === selectedId)?.gradient?.stops || []}
+                              onChange={(newStops) => {
+                                const el = elements.find(el => el.id === selectedId);
+                                updateSelected('gradient', { ...el?.gradient, stops: newStops });
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-medium text-slate-400">Colors</label>
+                            {elements.find(el => el.id === selectedId)?.gradient?.stops?.map((stop, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
                                 <input
-                                    type="text"
-                                    value={showFontList ? fontSearch : (elements.find(el => el.id === selectedId)?.fontFamily || 'sans-serif')}
-                                    onChange={(e) => {
-                                        setFontSearch(e.target.value);
-                                        setShowFontList(true);
-                                    }}
-                                    onFocus={() => {
-                                        setFontSearch('');
-                                        setShowFontList(true);
-                                    }}
-                                    onBlur={() => setTimeout(() => setShowFontList(false), 200)}
-                                    placeholder="Search Google Fonts..."
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-slate-300 focus:border-blue-500 outline-none"
+                                  type="color"
+                                  value={stop.color}
+                                  onChange={(e) => {
+                                    const el = elements.find(el => el.id === selectedId);
+                                    const newStops = [...(el?.gradient?.stops || [])];
+                                    newStops[idx] = { ...newStops[idx], color: e.target.value };
+                                    updateSelected('gradient', { ...el?.gradient, stops: newStops });
+                                  }}
+                                  className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
                                 />
-                                {showFontList && (
-                                    <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-slate-900 border border-slate-800 rounded-md shadow-xl z-50 custom-scrollbar">
-                                        {['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', ...googleFonts]
-                                            .filter(f => f.toLowerCase().includes(fontSearch.toLowerCase()))
-                                            .map(font => (
-                                            <button
-                                                key={font}
-                                                className="w-full text-left px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-                                                onClick={() => {
-                                                    updateSelected('fontFamily', font);
-                                                    setShowFontList(false);
-                                                    setFontSearch('');
-                                                }}
-                                            >
-                                                {font}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                             <div className="space-y-1">
-                                <label className="text-xs text-slate-500">Size</label>
-                                <input 
-                                    type="number" 
-                                    value={elements.find(el => el.id === selectedId)?.size || 16}
-                                    onChange={(e) => updateSelected('size', Number(e.target.value))}
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-slate-300 focus:border-blue-500 outline-none"
-                                />
-                             </div>
-                             <div className="space-y-1">
-                                <label className="text-xs text-slate-500">Color</label>
-                                <div className="flex items-center gap-2 h-[38px] bg-slate-900 border border-slate-800 rounded-md px-2">
-                                    <input 
-                                        type="color" 
-                                        value={elements.find(el => el.id === selectedId)?.color || '#ffffff'}
-                                        onChange={(e) => updateSelected('color', e.target.value)}
-                                        className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-                                    />
-                                    <span className="text-xs font-mono text-slate-400 flex-1 truncate">
-                                        {elements.find(el => el.id === selectedId)?.color}
-                                    </span>
-                                </div>
-                             </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => updateSelected('bold', !elements.find(el => el.id === selectedId)?.bold)}
-                                className={`flex-1 py-2 rounded-md border transition-all ${elements.find(el => el.id === selectedId)?.bold ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
+                                <span className="text-xs font-mono text-slate-400 flex-1">{stop.color}</span>
+                                <span className="text-xs text-slate-500 w-12 text-right">{Math.round(stop.offset * 100)}%</span>
+                                <button
+                                  onClick={() => {
+                                    const el = elements.find(el => el.id === selectedId);
+                                    const newStops = (el?.gradient?.stops || []).filter((_, i) => i !== idx);
+                                    updateSelected('gradient', { ...el?.gradient, stops: newStops });
+                                  }}
+                                  className="text-slate-600 hover:text-red-400"
+                                >
+                                  <Icons.Trash size={12} />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => {
+                                const el = elements.find(el => el.id === selectedId);
+                                const newStops = [...(el?.gradient?.stops || []), { offset: 0.5, color: '#ffffff' }];
+                                updateSelected('gradient', { ...el?.gradient, stops: newStops.sort((a, b) => a.offset - b.offset) });
+                              }}
+                              className="w-full py-1.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-400 rounded border border-slate-700 transition-colors"
                             >
-                                <Icons.Bold size={16} className="mx-auto" />
+                              + Add Stop
                             </button>
-                            <button 
-                                onClick={() => updateSelected('italic', !elements.find(el => el.id === selectedId)?.italic)}
-                                className={`flex-1 py-2 rounded-md border transition-all ${elements.find(el => el.id === selectedId)?.italic ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                            >
-                                <Icons.Italic size={16} className="mx-auto" />
-                            </button>
-                            <button 
-                                onClick={() => updateSelected('underline', !elements.find(el => el.id === selectedId)?.underline)}
-                                className={`flex-1 py-2 rounded-md border transition-all ${elements.find(el => el.id === selectedId)?.underline ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                            >
-                                <Icons.Underline size={16} className="mx-auto" />
-                            </button>
+                          </div>
                         </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
 
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => updateSelected('align', 'start')}
-                                className={`flex-1 py-2 rounded-md border transition-all ${elements.find(el => el.id === selectedId)?.align === 'start' ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                            >
-                                <Icons.AlignLeft size={16} className="mx-auto" />
-                            </button>
-                            <button 
-                                onClick={() => updateSelected('align', 'middle')}
-                                className={`flex-1 py-2 rounded-md border transition-all ${elements.find(el => el.id === selectedId)?.align === 'middle' ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                            >
-                                <Icons.AlignCenter size={16} className="mx-auto" />
-                            </button>
-                            <button 
-                                onClick={() => updateSelected('align', 'end')}
-                                className={`flex-1 py-2 rounded-md border transition-all ${elements.find(el => el.id === selectedId)?.align === 'end' ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                            >
-                                <Icons.AlignRight size={16} className="mx-auto" />
-                            </button>
-                        </div>
-
-                        {/* Effects Section */}
-                        <div className="space-y-4 pt-4 border-t border-slate-800">
-                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Effects</h4>
-                            
-                            {/* Shadow */}
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-xs text-slate-400 font-medium">Shadow</label>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="col-span-2 flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-md px-2 h-[32px]">
-                                        <input 
-                                            type="color" 
-                                            value={elements.find(el => el.id === selectedId)?.shadowColor === 'transparent' ? '#000000' : elements.find(el => el.id === selectedId)?.shadowColor || '#000000'}
-                                            onChange={(e) => updateSelected('shadowColor', e.target.value)}
-                                            className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0"
-                                        />
-                                        <span className="text-xs text-slate-500">Color</span>
-                                        <button 
-                                            onClick={() => updateSelected('shadowColor', 'transparent')}
-                                            className="ml-auto text-[10px] text-slate-500 hover:text-red-400"
-                                        >
-                                            Clear
-                                        </button>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] text-slate-500">Blur</label>
-                                        <input type="number" value={elements.find(el => el.id === selectedId)?.shadowBlur || 0} onChange={(e) => updateSelected('shadowBlur', Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] text-slate-500">X Offset</label>
-                                        <input type="number" value={elements.find(el => el.id === selectedId)?.shadowOffsetX || 0} onChange={(e) => updateSelected('shadowOffsetX', Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] text-slate-500">Y Offset</label>
-                                        <input type="number" value={elements.find(el => el.id === selectedId)?.shadowOffsetY || 0} onChange={(e) => updateSelected('shadowOffsetY', Number(e.target.value))} className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-300" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Neon */}
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-xs text-slate-400 font-medium">Neon Glow</label>
-                                    <Switch 
-                                        checked={elements.find(el => el.id === selectedId)?.neon?.enabled || false}
-                                        onChange={(checked) => {
-                                            const el = elements.find(el => el.id === selectedId);
-                                            updateSelected('neon', { ...el?.neon, enabled: checked });
-                                        }}
-                                    />
-                                </div>
-                                {elements.find(el => el.id === selectedId)?.neon?.enabled && (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="col-span-2 flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-md px-2 h-[32px]">
-                                            <input 
-                                                type="color" 
-                                                value={elements.find(el => el.id === selectedId)?.neon?.color || '#00ff00'}
-                                                onChange={(e) => {
-                                                    const el = elements.find(el => el.id === selectedId);
-                                                    updateSelected('neon', { ...el?.neon, color: e.target.value });
-                                                }}
-                                                className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0"
-                                            />
-                                            <span className="text-xs text-slate-500">Glow Color</span>
-                                        </div>
-                                        <div className="col-span-2 space-y-1">
-                                            <label className="text-[10px] text-slate-500">Intensity</label>
-                                            <input 
-                                                type="range" 
-                                                min="1" max="100" 
-                                                value={elements.find(el => el.id === selectedId)?.neon?.intensity || 20} 
-                                                onChange={(e) => {
-                                                    const el = elements.find(el => el.id === selectedId);
-                                                    updateSelected('neon', { ...el?.neon, intensity: Number(e.target.value) });
-                                                }}
-                                                className="w-full custom-range" 
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Gradient */}
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-xs text-slate-400 font-medium">Gradient Fill</label>
-                                    <Switch 
-                                        checked={elements.find(el => el.id === selectedId)?.gradient?.enabled || false}
-                                        onChange={(checked) => {
-                                            const el = elements.find(el => el.id === selectedId);
-                                            updateSelected('gradient', { ...el?.gradient, enabled: checked });
-                                        }}
-                                    />
-                                </div>
-                                {elements.find(el => el.id === selectedId)?.gradient?.enabled && (
-                                    <div className="space-y-3">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] text-slate-500">Angle ({elements.find(el => el.id === selectedId)?.gradient?.angle}°)</label>
-                                            <input 
-                                                type="range" 
-                                                min="0" max="360" 
-                                                value={elements.find(el => el.id === selectedId)?.gradient?.angle || 90} 
-                                                onChange={(e) => {
-                                                    const el = elements.find(el => el.id === selectedId);
-                                                    updateSelected('gradient', { ...el?.gradient, angle: Number(e.target.value) });
-                                                }}
-                                                className="w-full custom-range" 
-                                            />
-                                        </div>
-                                        
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] text-slate-500">Gradient Preview</label>
-                                            <GradientSlider 
-                                                stops={elements.find(el => el.id === selectedId)?.gradient?.stops || []}
-                                                onChange={(newStops) => {
-                                                    const el = elements.find(el => el.id === selectedId);
-                                                    updateSelected('gradient', { ...el?.gradient, stops: newStops });
-                                                }}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] text-slate-500">Colors</label>
-                                            {elements.find(el => el.id === selectedId)?.gradient?.stops?.map((stop, idx) => (
-                                                <div key={idx} className="flex items-center gap-2">
-                                                    <input 
-                                                        type="color" 
-                                                        value={stop.color}
-                                                        onChange={(e) => {
-                                                            const el = elements.find(el => el.id === selectedId);
-                                                            const newStops = [...(el?.gradient?.stops || [])];
-                                                            newStops[idx] = { ...newStops[idx], color: e.target.value };
-                                                            updateSelected('gradient', { ...el?.gradient, stops: newStops });
-                                                        }}
-                                                        className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-                                                    />
-                                                    <span className="text-xs font-mono text-slate-400 flex-1">{stop.color}</span>
-                                                    <span className="text-xs text-slate-500 w-12 text-right">{Math.round(stop.offset * 100)}%</span>
-                                                    <button 
-                                                        onClick={() => {
-                                                            const el = elements.find(el => el.id === selectedId);
-                                                            const newStops = (el?.gradient?.stops || []).filter((_, i) => i !== idx);
-                                                            updateSelected('gradient', { ...el?.gradient, stops: newStops });
-                                                        }}
-                                                        className="text-slate-500 hover:text-red-400"
-                                                    >
-                                                        <Icons.Trash size={12} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            <button 
-                                                onClick={() => {
-                                                    const el = elements.find(el => el.id === selectedId);
-                                                    const newStops = [...(el?.gradient?.stops || []), { offset: 0.5, color: '#ffffff' }];
-                                                    updateSelected('gradient', { ...el?.gradient, stops: newStops });
-                                                }}
-                                                className="w-full py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700"
-                                            >
-                                                Add Stop
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {elements.find(el => el.id === selectedId)?.type === 'image' && (
-                    <>
-                        <div className="space-y-2">
-                            <label className="text-xs text-slate-500">Image URL</label>
-                            <input 
-                                type="text" 
-                                value={elements.find(el => el.id === selectedId)?.src || ''}
-                                onChange={(e) => updateSelected('src', e.target.value)}
-                                className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-sm text-slate-300 focus:border-blue-500 outline-none"
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button onClick={fitToWidth} className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-900 border border-slate-800 rounded-md hover:bg-slate-800 text-xs text-slate-300">
-                                <Icons.Max size={14} /> Fit Width
-                            </button>
-                            <button onClick={fitToHeight} className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-900 border border-slate-800 rounded-md hover:bg-slate-800 text-xs text-slate-300">
-                                <Icons.Max size={14} className="rotate-90" /> Fit Height
-                            </button>
-                        </div>
-                    </>
-                )}
+              {elements.find(el => el.id === selectedId)?.type === 'image' && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-medium text-slate-400">Image URL</label>
+                    <input
+                      type="text"
+                      value={elements.find(el => el.id === selectedId)?.src || ''}
+                      onChange={(e) => updateSelected('src', e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={fitToWidth} className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-md transition-all text-xs font-medium">
+                      <Icons.Max size={14} /> Fit Width
+                    </button>
+                    <button onClick={fitToHeight} className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-md transition-all text-xs font-medium">
+                      <Icons.Max size={14} className="rotate-90" /> Fit Height
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
         </aside>
 
         {/* Main Canvas Area */}
-        <div className="flex-1 bg-slate-950 relative overflow-auto custom-scrollbar">
-            <div className="min-h-full min-w-full flex items-center justify-center p-8">
-                <div className="relative shadow-2xl ring-1 ring-slate-800">
-                    <CanvasEditor 
-                        width={canvasWidth}
-                        height={canvasHeight}
-                        elements={elements}
-                        selectedId={selectedId}
-                        onSelect={setSelectedId}
-                        onChange={handleElementsChange}
-                        bgImage={bgImage}
-                        bgFit={bgFit}
-                        theme={theme}
-                        customFrom={customFrom}
-                        customTo={customTo}
-                        blobCount={blobCount}
-                        showGrid={showGrid}
-                    />
-                </div>
+        <div className="flex-1 bg-slate-950 relative overflow-auto custom-scrollbar flex">
+          <div className="m-auto p-8 transition-all duration-200 ease-out" style={{
+            width: `${canvasWidth * zoom + 64}px`,
+            height: `${canvasHeight * zoom + 64}px`
+          }}>
+            <div style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
+            }}>
+              <div className="relative shadow-2xl ring-1 ring-slate-800">
+                <CanvasEditor
+                  width={canvasWidth}
+                  height={canvasHeight}
+                  elements={elements}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  onChange={handleElementsChange}
+                  bgImage={bgImage}
+                  bgFit={bgFit}
+                  theme={theme}
+                  customFrom={customFrom}
+                  customTo={customTo}
+                  blobCount={blobCount}
+                  showGrid={showGrid}
+                  style={style}
+                />
+              </div>
             </div>
-            
-            <div className="fixed bottom-6 right-6 bg-slate-900/80 backdrop-blur px-4 py-2 rounded-full border border-slate-800 text-xs text-slate-500 pointer-events-none z-10">
-                {Math.round(canvasWidth)} x {Math.round(canvasHeight)} px
-            </div>
+          </div>
+
+          <div className="fixed bottom-6 right-6 flex items-center gap-2 bg-slate-900/80 backdrop-blur p-1 rounded-lg border border-slate-800 z-10">
+            <button
+              onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}
+              className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-200 transition-colors"
+              title="Zoom Out"
+            >
+              <Icons.ZoomOut size={16} />
+            </button>
+            <span className="text-xs font-mono text-slate-400 w-12 text-center">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              onClick={() => setZoom(z => Math.min(5, z + 0.1))}
+              className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-200 transition-colors"
+              title="Zoom In"
+            >
+              <Icons.ZoomIn size={16} />
+            </button>
+            <div className="w-px h-4 bg-slate-800 mx-1" />
+            <span className="text-xs text-slate-500 px-2">
+              {Math.round(canvasWidth)} x {Math.round(canvasHeight)} px
+            </span>
+          </div>
         </div>
       </main>
     </div>

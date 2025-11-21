@@ -2,6 +2,10 @@
 
 A powerful, interactive editor to create stunning dynamic widgets for your GitHub profile README.
 
+## Getting Started
+
+https://my-readme-widget.vercel.app
+
 ![Widget](https://my-readme-widget.vercel.app/api/badge?id=outcSEh6gf3b0uq6fBPf)
 
 ## Features
@@ -21,21 +25,13 @@ A powerful, interactive editor to create stunning dynamic widgets for your GitHu
 - **Backend/Auth**: Firebase (Firestore & Auth)
 - **Deployment**: Vercel
 
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
 ## Usage
 
 1. Sign in with Google to save your widgets.
 2. Use the sidebar to add text or images.
 3. Customize appearance using the properties panel.
 4. Click "Copy Markdown" to get the code for your GitHub README.
+
+## Community
+
+Have fun with it! I would love to hear your feedback. Feel free to fork the project and open issues.

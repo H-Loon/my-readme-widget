@@ -24,8 +24,8 @@ https://my-readme-widget.vercel.app
 - **Framework**: [Next.js](https://nextjs.org/)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **Canvas**: [Konva.js](https://konvajs.org/) / [React Konva](https://github.com/konvajs/react-konva)
-- **Backend/Auth**: Firebase (Firestore & Auth)
-- **Deployment**: Vercel
+- **Backend/Auth**: [Firebase](https://firebase.google.com/) (Firestore & Auth)
+- **Deployment**: [Vercel](https://vercel.com/)
 
 ## Usage
 

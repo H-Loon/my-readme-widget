@@ -86,9 +86,7 @@ export function HomeView({
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-[1920px] mx-auto px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Icons.Github className="w-5 h-5 text-white" />
-            </div>
+            <img src="/logo.svg" alt="Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-blue-500/20" />
             <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
               Readme Widget
             </span>
@@ -398,6 +396,14 @@ export function HomeView({
                         />
                       </div>
                       <div className="space-y-1.5">
+                        <label className="text-[11px] font-medium text-slate-400">Letter Spacing</label>
+                        <NumberInput
+                          value={elements.find(el => el.id === selectedIds[0])?.letterSpacing || 0}
+                          onChange={(val) => updateSelected('letterSpacing', val)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
                         <label className="text-[11px] font-medium text-slate-400">Color</label>
                         <div className="flex items-center gap-2 h-[34px]">
                           <input
@@ -408,7 +414,7 @@ export function HomeView({
                           />
                           <input
                             type="color"
-                            value={elements.find(el => el.id === selectedIds[0])?.color || '#000000'}
+                            value={(elements.find(el => el.id === selectedIds[0])?.color || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.color : '#000000'}
                             onChange={(e) => updateSelected('color', e.target.value)}
                             className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0"
                           />
@@ -533,7 +539,7 @@ export function HomeView({
                               />
                               <input
                                 type="color"
-                                value={elements.find(el => el.id === selectedIds[0])?.shadowColor || '#000000'}
+                                value={(elements.find(el => el.id === selectedIds[0])?.shadowColor || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.shadowColor : '#000000'}
                                 onChange={(e) => updateSelected('shadowColor', e.target.value)}
                                 className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0 shrink-0"
                               />
@@ -595,7 +601,7 @@ export function HomeView({
                               />
                               <input
                                 type="color"
-                                value={elements.find(el => el.id === selectedIds[0])?.neon?.color || '#00ff00'}
+                                value={(elements.find(el => el.id === selectedIds[0])?.neon?.color || '#00ff00').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.neon?.color : '#00ff00'}
                                 onChange={(e) => {
                                   const el = elements.find(el => el.id === selectedIds[0]);
                                   updateSelected('neon', { ...el?.neon, color: e.target.value });
@@ -608,11 +614,26 @@ export function HomeView({
                             <label className="text-[11px] font-medium text-slate-400">Intensity</label>
                             <input
                               type="range"
-                              min="1" max="100"
+                              min="0.1" max="100"
+                              step="0.1"
                               value={elements.find(el => el.id === selectedIds[0])?.neon?.intensity || 20}
                               onChange={(e) => {
                                 const el = elements.find(el => el.id === selectedIds[0]);
                                 updateSelected('neon', { ...el?.neon, intensity: Number(e.target.value) });
+                              }}
+                              className="w-full custom-range"
+                            />
+                          </div>
+                          <div className="col-span-2 space-y-1.5">
+                            <label className="text-[11px] font-medium text-slate-400">Propagation</label>
+                            <input
+                              type="range"
+                              min="1" max="5"
+                              step="0.1"
+                              value={elements.find(el => el.id === selectedIds[0])?.neon?.propagation || 2}
+                              onChange={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('neon', { ...el?.neon, propagation: Number(e.target.value) });
                               }}
                               className="w-full custom-range"
                             />
@@ -666,7 +687,7 @@ export function HomeView({
                               <div key={idx} className="flex items-center gap-2">
                                 <input
                                   type="color"
-                                  value={stop.color}
+                                  value={stop.color.startsWith('#') ? stop.color : '#000000'}
                                   onChange={(e) => {
                                     const el = elements.find(el => el.id === selectedIds[0]);
                                     const newStops = [...(el?.gradient?.stops || [])];

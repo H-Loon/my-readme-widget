@@ -21,10 +21,12 @@ export interface CanvasElement {
   shadowBlur?: number;
   shadowOffsetX?: number;
   shadowOffsetY?: number;
+  letterSpacing?: number;
   neon?: {
     enabled: boolean;
     color: string;
     intensity: number;
+    propagation?: number;
   };
   gradient?: {
     enabled: boolean;

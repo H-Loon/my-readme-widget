@@ -129,11 +129,14 @@ export class BadgeSvgView {
         let shadowStyle = '';
         let strokeAttr = '';
         if (el.neon?.enabled) {
-          shadowStyle = `text-shadow: 0 0 ${el.neon.intensity}px ${el.neon.color}, 0 0 ${el.neon.intensity * 2}px ${el.neon.color};`;
+          const propagation = el.neon.propagation || 2;
+          shadowStyle = `text-shadow: 0 0 ${el.neon.intensity}px ${el.neon.color}, 0 0 ${el.neon.intensity * propagation}px ${el.neon.color};`;
           strokeAttr = `stroke="${el.neon.color}" stroke-width="2"`;
         } else if (el.shadowColor && el.shadowColor !== 'transparent') {
           shadowStyle = `text-shadow: ${el.shadowOffsetX || 0}px ${el.shadowOffsetY || 0}px ${el.shadowBlur || 0}px ${el.shadowColor};`;
         }
+
+        const letterSpacingAttr = el.letterSpacing ? `letter-spacing="${el.letterSpacing}px"` : '';
 
         let textContent = '';
         const decorationAttr = el.underline ? 'text-decoration="underline"' : '';
@@ -162,6 +165,7 @@ export class BadgeSvgView {
               font-style="${fontStyle}"
               fill="${fill}"
               ${strokeAttr}
+              ${letterSpacingAttr}
               style="${shadowStyle}"
               xml:space="preserve"
               >

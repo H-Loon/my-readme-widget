@@ -198,9 +198,10 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
   let strokeProps = {};
 
   if (element.neon?.enabled) {
+    const propagation = element.neon.propagation || 2;
     shadowProps = {
       shadowColor: element.neon.color,
-      shadowBlur: element.neon.intensity,
+      shadowBlur: element.neon.intensity * propagation,
       shadowOffsetX: 0,
       shadowOffsetY: 0,
       shadowOpacity: 1
@@ -240,6 +241,7 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
       fontFamily={element.fontFamily}
       fontStyle={`${element.bold ? 'bold' : ''} ${element.italic ? 'italic' : ''}`.trim() || 'normal'}
       textDecoration={element.underline ? 'underline' : ''}
+      letterSpacing={element.letterSpacing || 0}
       {...fillProps}
       {...shadowProps}
       {...strokeProps}

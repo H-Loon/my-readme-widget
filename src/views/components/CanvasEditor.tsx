@@ -1,15 +1,25 @@
+/**
+ * CanvasEditor.tsx
+ * 
+ * The core component of the application.
+ * Renders the interactive canvas where users can drag, drop, resize, and edit elements.
+ * Uses 'react-konva' which is a React wrapper for the Konva.js 2D canvas library.
+ */
 'use client';
 import React, { useRef, useEffect } from 'react';
 import { Stage, Layer, Text, Image as KonvaImage, Transformer, Rect, Group, Line } from 'react-konva';
 import useImage from 'use-image';
 
+// Grid size for snapping (20px)
 const GRID_SIZE = 20;
 
+// Interface for gradient color stops
 interface GradientStop {
   offset: number;
   color: string;
 }
 
+// Interface defining the structure of an element on the canvas
 interface CanvasElement {
   id: string;
   type: 'text' | 'image';
@@ -46,6 +56,7 @@ interface CanvasElement {
   fit?: 'contain' | 'cover' | 'stretch';
 }
 
+// Props for the CanvasEditor component
 interface CanvasEditorProps {
   width: number;
   height: number;
@@ -63,6 +74,11 @@ interface CanvasEditorProps {
   style?: string;
 }
 
+/**
+ * URLImage Component
+ * Renders an image from a URL onto the canvas.
+ * Handles proxying for certain domains to avoid CORS issues.
+ */
 const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid, onRegister, onDragStart, onDragMove, onDragEnd, onTransformEnd }: any) => {
   // Fix for github-readme-stats and skillicons to ensure they render in Canvas
   // We use a proxy to fetch the image and avoid CORS/Canvas tainting issues
@@ -81,9 +97,11 @@ const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid, onRe
     imageSrc = `/api/proxy-image?url=${encodeURIComponent(urlToProxy)}`;
   }
 
+  // useImage hook loads the image asynchronously
   const [image] = useImage(imageSrc, 'anonymous');
   const shapeRef = useRef<any>(null);
 
+  // Register the shape ref with the parent so Transformer can attach to it
   useEffect(() => {
     if (shapeRef.current) {
       onRegister(element.id, shapeRef.current);
@@ -102,6 +120,7 @@ const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid, onRe
       draggable
       name="object"
       id={element.id}
+      // Snap to grid logic during drag
       dragBoundFunc={(pos) => {
         if (!showGrid) return pos;
         return {
@@ -119,6 +138,11 @@ const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid, onRe
   );
 };
 
+/**
+ * EditableText Component
+ * Renders text that can be styled, resized, and moved.
+ * Handles gradients, shadows, and neon effects.
+ */
 const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onRegister, onDragStart, onDragMove, onDragEnd, onTransformEnd }: any) => {
   const shapeRef = useRef<any>(null);
   const [dimensions, setDimensions] = React.useState({ width: 0, height: 0 });
@@ -129,6 +153,7 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
     }
   }, [element.id, onRegister]);
 
+  // Measure text dimensions when properties change
   useEffect(() => {
     if (shapeRef.current) {
       const w = shapeRef.current.width();
@@ -279,6 +304,11 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
   );
 };
 
+/**
+ * BackgroundLayer Component
+ * Renders the background image or color.
+ * Handles different fit modes (cover, contain, stretch).
+ */
 const BackgroundLayer = ({ width, height, bgImage, bgFit, theme, customFrom, customTo, blobCount, style }: any) => {
   const [image] = useImage(bgImage || '', 'anonymous');
 
@@ -347,6 +377,10 @@ const BackgroundLayer = ({ width, height, bgImage, bgFit, theme, customFrom, cus
   );
 };
 
+/**
+ * GridLayer Component
+ * Renders a grid overlay to help with alignment.
+ */
 const GridLayer = ({ width, height }: { width: number; height: number }) => {
   const lines = [];
   // Vertical lines
@@ -376,6 +410,9 @@ const GridLayer = ({ width, height }: { width: number; height: number }) => {
   return <Group listening={false}>{lines}</Group>;
 };
 
+/**
+ * Main CanvasEditor Component
+ */
 export default function CanvasEditor({ width, height, elements, selectedIds, onSelect, onChange, bgImage, bgFit, theme, customFrom, customTo, blobCount, showGrid, style }: CanvasEditorProps) {
   const trRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
@@ -387,7 +424,7 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
     shapeRefs.current[id] = node;
   };
 
-  // Update transformer nodes
+  // Update transformer nodes (the selection box handles)
   useEffect(() => {
     if (trRef.current && layerRef.current) {
       const nodes = selectedIds.map(id => shapeRefs.current[id]).filter(Boolean);
@@ -396,6 +433,7 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
     }
   }, [selectedIds, elements]);
 
+  // Handle selection of elements
   const handleSelect = (id: string, e: any) => {
     const isMulti = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
     
@@ -413,6 +451,7 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
     e.cancelBubble = true;
   };
 
+  // Deselect when clicking on the empty stage
   const checkDeselect = (e: any) => {
     const clickedOnEmpty = e.target === e.target.getStage();
     if (clickedOnEmpty) {
@@ -420,6 +459,7 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
     }
   };
 
+  // Handle drag start
   const onDragStart = (e: any, id: string) => {
     // If dragging an item that is NOT selected, select it (and deselect others unless multi)
     if (!selectedIds.includes(id)) {
@@ -450,6 +490,7 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
     }
   };
 
+  // Handle drag move (for multi-selection dragging)
   const onDragMove = (e: any, id: string) => {
       // If we are dragging a node that is part of the selection
       const isSelected = selectedIds.includes(id);
@@ -475,6 +516,7 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
       });
   };
 
+  // Handle drag end
   const onDragEnd = (e: any, id: string) => {
       // Update all selected elements in state
       // If the dragged item was not in selectedIds (e.g. single drag of unselected), we should include it.
@@ -496,6 +538,7 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
       onChange(newElements);
   };
 
+  // Handle transform end (resize/rotate)
   const onTransformEnd = (e: any, id: string) => {
       // Transformer updates the nodes directly.
       // We need to sync back to state.

@@ -1,3 +1,10 @@
+/**
+ * useCanvasOperations.ts
+ * 
+ * This hook contains the logic for manipulating elements on the canvas.
+ * It handles adding, updating, deleting, and resizing elements.
+ * It keeps the main view component clean by abstracting these operations.
+ */
 import { CanvasElement } from '@/models/types';
 import { loadWebFont } from '@/utils/fontUtils';
 
@@ -21,6 +28,10 @@ export function useCanvasOperations({
   setCanvasHeight
 }: UseCanvasOperationsProps) {
 
+  /**
+   * Helper function to load an image and determine its natural dimensions.
+   * It ensures the image fits within a reasonable size (max 250px width) initially.
+   */
   const resolveImageDimensions = (src: string, id: string) => {
     const img = new Image();
     img.onload = () => {
@@ -29,11 +40,13 @@ export function useCanvasOperations({
       let newW = img.width;
       let newH = img.height;
 
+      // Scale down if too big
       if (newW > maxW) {
         newW = maxW;
         newH = maxW / ratio;
       }
 
+      // Update the element with the correct dimensions
       const newElements = elements.map(el => {
         if (el.id === id) {
           return {
@@ -50,6 +63,9 @@ export function useCanvasOperations({
     img.src = src;
   };
 
+  /**
+   * Adds a new text element to the center of the canvas.
+   */
   const addText = () => {
     const newId = Date.now().toString();
     const newElements: CanvasElement[] = [...elements, {
@@ -77,6 +93,10 @@ export function useCanvasOperations({
     setSelectedIds([newId]);
   };
 
+  /**
+   * Adds a new image element to the canvas.
+   * Uses a default placeholder image initially.
+   */
   const addImage = () => {
     const newId = Date.now().toString();
     const startX = (canvasWidth / 2) - 60;
@@ -86,34 +106,54 @@ export function useCanvasOperations({
     const newElements: CanvasElement[] = [...elements, { id: newId, type: 'image', src: defaultSrc, x: startX, y: startY, width: 100, height: 100, scale: 1.0, fit: 'contain' }];
     handleElementsChange(newElements);
     setSelectedIds([newId]);
+    
+    // Calculate real dimensions after adding
     resolveImageDimensions(defaultSrc, newId);
   };
 
+  /**
+   * Updates a specific property of the currently selected element(s).
+   * 
+   * @param key - The property name to update (e.g., 'color', 'x', 'text').
+   * @param value - The new value for the property.
+   */
   const updateSelected = (key: keyof CanvasElement, value: any) => {
     let finalValue = value;
+    
+    // Special handling for GitHub Readme Stats URLs to ensure animations are disabled (for static images).
     if (key === 'src' && typeof value === 'string') {
       if (value.includes('github-readme-stats.vercel.app') && !value.includes('disable_animations')) {
         finalValue += value.includes('?') ? '&disable_animations=true' : '?disable_animations=true';
       }
     }
 
+    // If changing font, load it dynamically.
     if (key === 'fontFamily') {
       loadWebFont(value);
     }
 
+    // Apply the change to all selected elements.
     const newElements = elements.map(el => selectedIds.includes(el.id) ? { ...el, [key]: finalValue } : el);
     handleElementsChange(newElements);
+    
+    // If image source changed, recalculate dimensions.
     if (key === 'src') {
       selectedIds.forEach(id => resolveImageDimensions(finalValue, id));
     }
   };
 
+  /**
+   * Deletes the currently selected element(s).
+   */
   const deleteSelected = () => {
     const newElements = elements.filter(el => !selectedIds.includes(el.id));
     handleElementsChange(newElements);
     setSelectedIds([]);
   };
 
+  /**
+   * Resizes the selected image to match the canvas width.
+   */
   const fitToWidth = () => {
     const newElements = elements.map(el => {
       if (selectedIds.includes(el.id) && el.type === 'image') {
@@ -134,6 +174,9 @@ export function useCanvasOperations({
     handleElementsChange(newElements);
   };
 
+  /**
+   * Resizes the selected image to match the canvas height.
+   */
   const fitToHeight = () => {
     const newElements = elements.map(el => {
       if (selectedIds.includes(el.id) && el.type === 'image') {
@@ -154,6 +197,10 @@ export function useCanvasOperations({
     handleElementsChange(newElements);
   };
 
+  /**
+   * Changes the text alignment (start, middle, end) and adjusts the X position
+   * so the text visually stays in the same place.
+   */
   const handleAlignChange = (newAlign: 'start' | 'middle' | 'end') => {
     if (selectedIds.length === 0) return;
 
@@ -164,10 +211,12 @@ export function useCanvasOperations({
 
         if (oldAlign === newAlign) return el;
 
+        // Calculate where the left edge of the text currently is.
         let visualLeft = el.x;
         if (oldAlign === 'middle') visualLeft = el.x - width / 2;
         if (oldAlign === 'end') visualLeft = el.x - width;
 
+        // Calculate the new anchor point based on the new alignment.
         let newX = visualLeft;
         if (newAlign === 'middle') newX = visualLeft + width / 2;
         if (newAlign === 'end') newX = visualLeft + width;
@@ -179,6 +228,9 @@ export function useCanvasOperations({
     handleElementsChange(newElements);
   };
 
+  /**
+   * Adjusts the canvas height to fit the lowest element.
+   */
   const fitCanvasToContent = () => {
     if (elements.length > 0) {
       const lowestY = Math.max(...elements.map(e => e.y + (e.type === 'image' ? (e.height || 0) / 2 : 0)));

@@ -1,5 +1,5 @@
 /**
- * HomeView Component
+ * HomeView.tsx
  * 
  * This is the main presentation component for the application.
  * It implements the UI layout including:
@@ -18,6 +18,7 @@ import { Switch } from '@/views/components/Switch';
 import { GradientSlider } from '@/views/components/GradientSlider';
 import { CanvasElement } from '@/models/types';
 
+// Dynamically import CanvasEditor to avoid SSR issues with Konva
 const CanvasEditor = dynamic(() => import('@/views/components/CanvasEditor'), { ssr: false });
 
 interface HomeViewProps {
@@ -82,9 +83,10 @@ export function HomeView({
 }: HomeViewProps) {
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
-      {/* Header */}
+      {/* Header Section */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-[1920px] mx-auto px-6 h-16 flex items-center justify-between gap-4">
+          {/* Logo and Title */}
           <div className="flex items-center gap-3">
             <img src="/logo.svg" alt="Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-blue-500/20" />
             <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
@@ -92,6 +94,7 @@ export function HomeView({
             </span>
           </div>
 
+          {/* Center Controls: Undo/Redo and Widget Name */}
           <div className="flex-1 max-w-xl flex items-center gap-4">
             <div className="flex items-center gap-2 bg-slate-900/50 rounded-lg p-1 border border-slate-800">
               <button
@@ -122,6 +125,7 @@ export function HomeView({
             </div>
           </div>
 
+          {/* Right Controls: Preview, Copy, Save, Auth */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => window.open(getUrl(true), '_blank')}
@@ -159,10 +163,10 @@ export function HomeView({
       </header>
 
       <main className="flex h-[calc(100vh-64px)]">
-        {/* Sidebar */}
+        {/* Sidebar: Settings and Properties */}
         <aside className="w-80 bg-slate-900/50 border-r border-slate-800 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 space-y-6">
 
-          {/* Saved Widgets */}
+          {/* Saved Widgets List */}
           {widgetState.savedWidgets.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Saved Widgets</h3>
@@ -199,7 +203,7 @@ export function HomeView({
             </div>
           )}
 
-          {/* Canvas Settings */}
+          {/* Canvas Settings (Dimensions, Theme, Background) */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Canvas Settings</h3>
 
@@ -324,7 +328,7 @@ export function HomeView({
             </div>
           </div>
 
-          {/* Elements */}
+          {/* Add Elements Buttons */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Elements</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -337,7 +341,7 @@ export function HomeView({
             </div>
           </div>
 
-          {/* Selected Element Properties */}
+          {/* Selected Element Properties Panel */}
           {selectedIds.length > 0 && (
             <div className="space-y-4 pt-4 border-t border-slate-800">
               <div className="flex items-center justify-between">
@@ -374,6 +378,7 @@ export function HomeView({
                 </div>
               </div>
 
+              {/* Text Properties */}
               {elements.find(el => el.id === selectedIds[0])?.type === 'text' && (
                 <>
                   <div className="space-y-2">
@@ -728,6 +733,7 @@ export function HomeView({
                 </>
               )}
 
+              {/* Image Properties */}
               {elements.find(el => el.id === selectedIds[0])?.type === 'image' && (
                 <>
                   <div className="space-y-2">
@@ -785,6 +791,7 @@ export function HomeView({
             </div>
           </div>
 
+          {/* Zoom Controls */}
           <div className="fixed bottom-6 right-6 flex items-center gap-2 bg-slate-900/80 backdrop-blur p-1 rounded-lg border border-slate-800 z-10">
             <button
               onClick={() => editorState.setZoom((z: number) => Math.max(0.1, z - 0.1))}

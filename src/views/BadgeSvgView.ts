@@ -1,17 +1,25 @@
 /**
- * BadgeSvgView
+ * BadgeSvgView.ts
  * 
- * This class is responsible for rendering the SVG string for the widget.
- * It takes the raw widget data and produces the final SVG markup.
+ * This class is responsible for generating the final SVG string for the widget.
+ * It acts as a server-side (or client-side) renderer that takes the widget state
+ * and produces a standalone SVG file that can be embedded in a GitHub README.
  * 
- * Features:
- * - Renders text with custom fonts, colors, gradients, and shadows.
- * - Renders images (fetching and converting to Base64).
- * - Generates dynamic backgrounds (gradients, blobs, custom images).
- * - Handles server-side rendering logic for the badge.
+ * Key Responsibilities:
+ * - Rendering text elements with precise positioning, styling, and effects (shadows, neon).
+ * - Rendering image elements, including fetching remote images and converting them to Base64
+ *   to ensure the SVG is self-contained.
+ * - Generating dynamic backgrounds, including complex "ethereal" blob animations using SVG filters.
+ * - Handling font imports (Google Fonts) to ensure text looks correct.
  */
 export class BadgeSvgView {
+  /**
+   * Generates the SVG string for a given widget configuration.
+   * @param data The widget data object containing elements, dimensions, and theme settings.
+   * @returns A Promise that resolves to the SVG string.
+   */
   static async render(data: any): Promise<string> {
+    // Destructure widget properties with default values
     const {
       elements = [],
       width = 1400,
@@ -25,6 +33,7 @@ export class BadgeSvgView {
       bgFit = 'cover'
     } = data;
 
+    // Define color themes mapping
     const themes: any = {
       blue: { from: '#2563eb', to: '#06b6d4', text: '#ffffff', bg: '#0f172a' },
       purple: { from: '#7c3aed', to: '#db2777', text: '#ffffff', bg: '#2e1065' },
@@ -35,6 +44,11 @@ export class BadgeSvgView {
     };
     const t = themes[theme] || themes.blue;
 
+    /**
+     * Helper function to fetch an image from a URL and convert it to a Base64 data URI.
+     * This is crucial for embedding images directly into the SVG so they work in READMEs
+     * without relying on external hosting or hotlinking protection.
+     */
     const fetchImageToBase64 = async (url: string) => {
       try {
         const imgRes = await fetch(url, {
@@ -57,7 +71,9 @@ export class BadgeSvgView {
       }
     };
 
+    // Process all elements (Text and Images) and generate their SVG markup
     const renderedElements = await Promise.all(elements.map(async (el: any, index: number) => {
+      // --- Text Element Rendering ---
       if (el.type === 'text' || !el.type) {
         const fontWeight = el.bold ? 'bold' : 'normal';
         const fontStyle = el.italic ? 'italic' : 'normal';
@@ -66,16 +82,17 @@ export class BadgeSvgView {
         let fontFamily = el.fontFamily || 'sans-serif';
         let fontImport = '';
 
-        // Determine text-anchor based on alignment
+        // Map alignment to SVG text-anchor
         let textAnchor = el.align || 'start';
         if (textAnchor === 'left') textAnchor = 'start';
         if (textAnchor === 'center') textAnchor = 'middle';
         if (textAnchor === 'right') textAnchor = 'end';
 
-        // Match globals.css font stack for consistency to ensure Editor and Preview match
+        // Normalize generic font families
         if (fontFamily === 'sans-serif') fontFamily = 'Arial, Helvetica, sans-serif';
 
-        // Check if it's a Google Font (simple heuristic: starts with uppercase and not in standard list)
+        // Check if it's a Google Font and generate the import style tag
+        // Heuristic: Starts with uppercase and is not a standard web safe font
         const standardFonts = ['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Trebuchet MS', 'Impact'];
         if (!standardFonts.includes(fontFamily) && /^[A-Z]/.test(fontFamily)) {
           fontImport = `<style>@import url('https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, '+')}&amp;display=swap');</style>`;
@@ -84,19 +101,23 @@ export class BadgeSvgView {
         let fill = el.color;
         let defs = fontImport ? `<defs>${fontImport}</defs>` : '';
 
+        // Sanitize text content for XML
         const safeText = (el.text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const lines = safeText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
         
+        // Calculate approximate dimensions for gradient calculations
         const w = el.width || (safeText.length * el.size * 0.6) || 100;
         const h = el.height || el.size || 20;
 
         let svgTextAnchor = textAnchor;
         let xOffset = 0;
 
+        // Handle Text Gradient
         if (el.gradient?.enabled && el.gradient.stops && el.gradient.stops.length > 0) {
           const gradId = `grad_${index}`;
           const angle = el.gradient.angle || 90;
 
+          // Calculate gradient vector based on text dimensions and angle
           let cx = 0;
           if (textAnchor === 'start') cx = w / 2;
           else if (textAnchor === 'end') cx = -w / 2;
@@ -126,10 +147,12 @@ export class BadgeSvgView {
           fill = `url(#${gradId})`;
         }
 
+        // Handle Text Effects (Neon Glow or Shadow)
         let shadowStyle = '';
         let strokeAttr = '';
         if (el.neon?.enabled) {
           const propagation = el.neon.propagation || 2;
+          // CSS text-shadow for neon effect
           shadowStyle = `text-shadow: 0 0 ${el.neon.intensity}px ${el.neon.color}, 0 0 ${el.neon.intensity * propagation}px ${el.neon.color};`;
           strokeAttr = `stroke="${el.neon.color}" stroke-width="2"`;
         } else if (el.shadowColor && el.shadowColor !== 'transparent') {
@@ -138,6 +161,7 @@ export class BadgeSvgView {
 
         const letterSpacingAttr = el.letterSpacing ? `letter-spacing="${el.letterSpacing}px"` : '';
 
+        // Handle Multi-line Text
         let textContent = '';
         const decorationAttr = el.underline ? 'text-decoration="underline"' : '';
 
@@ -147,7 +171,7 @@ export class BadgeSvgView {
           const lineHeight = 1.2; // em
           textContent = lines.map((line: string, i: number) => {
             const dy = i === 0 ? 0 : lineHeight;
-            const content = line === '' ? '&#8203;' : line;
+            const content = line === '' ? '&#8203;' : line; // Zero-width space for empty lines
             return `<tspan x="0" dy="${dy}em" ${decorationAttr}>${content}</tspan>`;
           }).join('');
         }
@@ -175,8 +199,10 @@ export class BadgeSvgView {
         `;
       }
 
+      // --- Image Element Rendering ---
       if (el.type === 'image') {
         let targetUrl = el.src;
+        // Hack for github-readme-stats to disable animations if needed (SVG animations can be heavy)
         if (targetUrl.includes('github-readme-stats.vercel.app') && !targetUrl.includes('disable_animations')) {
           targetUrl += targetUrl.includes('?') ? '&disable_animations=true' : '?disable_animations=true';
         }
@@ -210,8 +236,10 @@ export class BadgeSvgView {
 
     const contentSvg = renderedElements.join('');
 
+    // --- Background Rendering ---
     let backgroundSvg = '';
 
+    // 1. Custom Background Image
     if (customBgUrl) {
       const bgDataUri = await fetchImageToBase64(customBgUrl);
       if (bgDataUri) {
@@ -225,6 +253,7 @@ export class BadgeSvgView {
       }
     }
 
+    // 2. Ethereal Animated Blobs Background
     if (!backgroundSvg && style === 'ethereal' && theme !== 'transparent') {
       const padding = 250;
       const minX = padding;
@@ -233,15 +262,21 @@ export class BadgeSvgView {
       const maxY = height - 250;
       const segmentWidth = (maxX - minX) / blobCount;
 
+      // Generate random blobs with animations
       const blobCode = Array.from({ length: blobCount }).map((_, i) => {
+        // Deterministic pseudo-random numbers based on index to keep blobs consistent across renders if needed
         const r1 = ((i + 1) * 137.508) % 1;
         const r2 = ((i + 1) * 211.31) % 1;
         const r3 = ((i + 1) * 73.19) % 1;
+        
         const startX = minX + (i * segmentWidth) + (r1 * segmentWidth * 0.5);
         const startY = minY + (r2 * (maxY - minY));
+        
+        // Calculate drift for animation
         let driftX = (r3 > 0.5 ? 1 : -1) * (150 + (r1 * 150));
         let driftY = (r2 - 0.5) * 200;
 
+        // Bounce off walls logic
         if (startX + driftX > maxX) driftX = -Math.abs(driftX);
         if (startX + driftX < minX) driftX = Math.abs(driftX);
         if (startY + driftY > maxY) driftY = -Math.abs(driftY);
@@ -252,9 +287,12 @@ export class BadgeSvgView {
         const r = 60 + (r2 * 40);
         const dur = 20 + (r1 * 10);
         const fill = i % 2 === 0 ? 'url(#blob1)' : 'url(#blob2)';
+        
+        // SVG Animate tags for movement
         return `<circle r="${r}" fill="${fill}"><animate attributeName="cx" values="${startX}; ${midX}; ${startX}" keyTimes="0; 0.5; 1" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1" calcMode="spline" dur="${dur}s" repeatCount="indefinite" /><animate attributeName="cy" values="${startY}; ${midY}; ${startY}" keyTimes="0; 0.5; 1" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1" calcMode="spline" dur="${dur}s" repeatCount="indefinite" /></circle>`;
       }).join('');
 
+      // Apply Gooey filter for liquid effect
       backgroundSvg = `
         <defs>
           <filter id="goo">
@@ -268,6 +306,7 @@ export class BadgeSvgView {
       `;
     }
 
+    // 3. Simple Gradient Background (Fallback)
     if (!backgroundSvg) {
       if (theme !== 'transparent') {
         backgroundSvg = `
@@ -279,6 +318,7 @@ export class BadgeSvgView {
       }
     }
 
+    // Assemble final SVG
     return `
       <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" overflow="hidden">
         ${backgroundSvg}

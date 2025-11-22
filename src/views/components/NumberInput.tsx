@@ -1,3 +1,9 @@
+/**
+ * NumberInput.tsx
+ * 
+ * A custom number input component with increment/decrement buttons.
+ * Used for setting numeric values like width, height, font size, etc.
+ */
 import React, { useRef } from 'react';
 import { Icons } from './Icons';
 

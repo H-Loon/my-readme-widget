@@ -1,15 +1,46 @@
+/**
+ * Switch.tsx
+ * 
+ * A reusable toggle switch component.
+ * Used for boolean settings like "Show Border" or "Transparent Background".
+ */
 import React from 'react';
 
 interface SwitchProps {
-  checked: boolean;
-  onChange: (c: boolean) => void;
+    checked: boolean;           // Current state (on/off)
+    onChange: (checked: boolean) => void; // Callback when toggled
+    label?: string;             // Optional text label to display next to the switch
 }
 
-export const Switch = ({ checked, onChange }: SwitchProps) => (
-  <button
-    onClick={() => onChange(!checked)}
-    className={`w-9 h-5 rounded-full relative transition-colors border ${checked ? 'bg-blue-600 border-blue-500' : 'bg-slate-900 border-slate-700'}`}
-  >
-    <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-all shadow-sm ${checked ? 'left-4' : 'left-0.5'}`} />
-  </button>
-);
+export const Switch: React.FC<SwitchProps> = ({ checked, onChange, label }) => {
+    return (
+        <label className="flex items-center gap-2 cursor-pointer group">
+            <div className="relative">
+                {/* Hidden checkbox input that handles the state */}
+                <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={checked}
+                    onChange={(e) => onChange(e.target.checked)}
+                />
+                
+                {/* The track (background) of the switch */}
+                <div className={`w-10 h-6 rounded-full transition-colors duration-200 ease-in-out ${
+                    checked ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                }`} />
+                
+                {/* The thumb (circle) that moves back and forth */}
+                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out ${
+                    checked ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+            </div>
+            
+            {/* Optional label text */}
+            {label && (
+                <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
+                    {label}
+                </span>
+            )}
+        </label>
+    );
+};

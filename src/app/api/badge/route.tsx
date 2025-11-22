@@ -47,7 +47,9 @@ export async function GET(request: Request) {
           customFrom: data.customFrom || '',
           customTo: data.customTo || '',
           customBgUrl: data.bgImage || '',
-          bgFit: data.bgFit || 'cover'
+          bgFit: data.bgFit || 'cover',
+          bgColor: data.bgColor || '',
+          bgGradient: data.bgGradient || null
         };
       }
     } catch (error) {
@@ -74,6 +76,14 @@ export async function GET(request: Request) {
       ];
     }
 
+    let bgGradient = null;
+    try {
+      const bgGradientParam = searchParams.get('bgGradient');
+      if (bgGradientParam) {
+        bgGradient = JSON.parse(bgGradientParam);
+      }
+    } catch (e) {}
+
     widgetData = {
       elements,
       width: parseInt(searchParams.get('w') || '1400'),
@@ -84,7 +94,9 @@ export async function GET(request: Request) {
       customFrom: searchParams.get('from') || '',
       customTo: searchParams.get('to') || '',
       customBgUrl: searchParams.get('bg') || '',
-      bgFit: searchParams.get('bgFit') || 'cover'
+      bgFit: searchParams.get('bgFit') || 'cover',
+      bgColor: searchParams.get('bgColor') || '',
+      bgGradient
     };
   }
 

@@ -19,6 +19,20 @@ export function useEditorState() {
   
   // The background style (e.g., 'solid', 'ethereal' blobs).
   const [style, setStyle] = useState('transparent');
+
+  // Background Color (for custom style or ethereal blobs base color)
+  const [bgColor, setBgColor] = useState('#0f172a');
+
+  // Background Gradient configuration
+  const [bgGradient, setBgGradient] = useState({
+    enabled: false,
+    type: 'linear',
+    angle: 90,
+    stops: [
+      { offset: 0, color: '#6366f1' },
+      { offset: 1, color: '#ec4899' }
+    ]
+  });
   
   // Number of animated blobs to show if style is 'ethereal'.
   const [blobCount, setBlobCount] = useState(5);
@@ -47,6 +61,8 @@ export function useEditorState() {
     canvasHeight, setCanvasHeight,
     theme, setTheme,
     style, setStyle,
+    bgColor, setBgColor,
+    bgGradient, setBgGradient,
     blobCount, setBlobCount,
     customFrom, setCustomFrom,
     customTo, setCustomTo,

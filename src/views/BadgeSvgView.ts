@@ -11,6 +11,9 @@
  *   to ensure the SVG is self-contained.
  * - Generating dynamic backgrounds, including complex "ethereal" blob animations using SVG filters.
  * - Handling font imports (Google Fonts) to ensure text looks correct.
+ * 
+ * Updates:
+ * - Improved fallback logic to prevent unwanted backgrounds when style is 'transparent'.
  */
 export class BadgeSvgView {
   /**
@@ -30,7 +33,9 @@ export class BadgeSvgView {
       customFrom = '',
       customTo = '',
       customBgUrl = '',
-      bgFit = 'cover'
+      bgFit = 'cover',
+      bgColor = '',
+      bgGradient = null
     } = data;
 
     // Define color themes mapping
@@ -239,8 +244,8 @@ export class BadgeSvgView {
     // --- Background Rendering ---
     let backgroundSvg = '';
 
-    // 1. Custom Background Image
-    if (customBgUrl) {
+    // 1. Custom Background Image (Only if style is 'image')
+    if (style === 'image' && customBgUrl) {
       const bgDataUri = await fetchImageToBase64(customBgUrl);
       if (bgDataUri) {
         let preserveRatio = "xMidYMid slice"; // cover
@@ -253,8 +258,45 @@ export class BadgeSvgView {
       }
     }
 
-    // 2. Ethereal Animated Blobs Background
-    if (!backgroundSvg && style === 'ethereal' && theme !== 'transparent') {
+    // 2. Custom Gradient Background (Only if style is 'custom' or fallback)
+    if (!backgroundSvg && (style === 'custom' || !style) && bgGradient && bgGradient.enabled && bgGradient.stops && bgGradient.stops.length > 0) {
+      const angle = bgGradient.angle || 90;
+      const rad = ((angle - 90) * Math.PI) / 180;
+      
+      const cx = width / 2;
+      const cy = height / 2;
+      const r = Math.sqrt(width * width + height * height) / 2;
+
+      const x1 = cx - r * Math.cos(rad);
+      const y1 = cy - r * Math.sin(rad);
+      const x2 = cx + r * Math.cos(rad);
+      const y2 = cy + r * Math.sin(rad);
+
+      const sortedStops = [...bgGradient.stops].sort((a: any, b: any) => a.offset - b.offset);
+      const stops = sortedStops.map((s: any) =>
+        `<stop offset="${s.offset * 100}%" stop-color="${s.color}" />`
+      ).join('');
+
+      backgroundSvg = `
+        <defs>
+          <linearGradient id="bgGrad" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" gradientUnits="userSpaceOnUse">
+            ${stops}
+          </linearGradient>
+        </defs>
+        <rect width="${width}" height="${height}" fill="url(#bgGrad)" />
+      `;
+    }
+
+    // 3. Custom Solid Color Background (Only if style is 'custom' or fallback)
+    if (!backgroundSvg && (style === 'custom' || !style) && bgColor) {
+      backgroundSvg = `<rect width="${width}" height="${height}" fill="${bgColor}" />`;
+    }
+
+    // 4. Ethereal Animated Blobs Background
+    if (!backgroundSvg && style === 'ethereal') {
+      const effectiveTheme = theme === 'transparent' ? 'blue' : theme;
+      const t = themes[effectiveTheme] || themes.blue;
+      
       const padding = 250;
       const minX = padding;
       const maxX = width - padding;
@@ -307,7 +349,7 @@ export class BadgeSvgView {
     }
 
     // 3. Simple Gradient Background (Fallback)
-    if (!backgroundSvg) {
+    if (!backgroundSvg && style !== 'transparent') {
       if (theme !== 'transparent') {
         backgroundSvg = `
           <defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${t.from}" /><stop offset="100%" stop-color="${t.to}" /></linearGradient></defs>

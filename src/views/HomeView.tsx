@@ -6,6 +6,12 @@
  * - Header: Navigation, Auth controls, Save/Preview actions.
  * - Sidebar: Widget management, Canvas settings, Element properties.
  * - Main Area: The interactive CanvasEditor and Zoom controls.
+ * - Preview Modal: Live preview with Dark/Light mode toggle and Zoom.
+ * 
+ * Updates:
+ * - Added Dark Mode toggle for preview to test transparency.
+ * - Refactored color pickers to use a custom "filled button" style.
+ * - Replaced iframe with img in preview for better transparency support.
  * 
  * This component is "dumb" in that it relies on props for all state and actions,
  * following the Presentational Component pattern.
@@ -81,6 +87,10 @@ export function HomeView({
   deleteWidget,
   getUrl
 }: HomeViewProps) {
+  const [showPreview, setShowPreview] = React.useState(false);
+  const [previewZoom, setPreviewZoom] = React.useState(1);
+  const [previewDarkMode, setPreviewDarkMode] = React.useState(true);
+
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
       {/* Header Section */}
@@ -128,7 +138,7 @@ export function HomeView({
           {/* Right Controls: Preview, Copy, Save, Auth */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => window.open(getUrl(true), '_blank')}
+              onClick={() => setShowPreview(true)}
               className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-lg text-sm font-medium transition-colors"
             >
               <Icons.Eye size={16} /> Preview
@@ -231,43 +241,9 @@ export function HomeView({
             </button>
 
             <div className="space-y-2">
-              <label className="text-[11px] font-medium text-slate-400">Theme Preset</label>
-              <div className="grid grid-cols-3 gap-2">
-                {['transparent', 'custom'].map(t => (
-                  <button
-                    key={t}
-                    onClick={() => editorState.setTheme(t)}
-                    className={`px-2 py-1.5 rounded text-xs font-medium capitalize border transition-all ${editorState.theme === t ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-600 hover:text-slate-300'}`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {editorState.theme === 'custom' && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-medium text-slate-400">From</label>
-                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-md px-2 py-1.5">
-                    <input type="color" value={editorState.customFrom} onChange={(e) => editorState.setCustomFrom(e.target.value)} className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0" />
-                    <span className="text-xs text-slate-300 font-mono">{editorState.customFrom}</span>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-medium text-slate-400">To</label>
-                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-md px-2 py-1.5">
-                    <input type="color" value={editorState.customTo} onChange={(e) => editorState.setCustomTo(e.target.value)} className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0" />
-                    <span className="text-xs text-slate-300 font-mono">{editorState.customTo}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
               <label className="text-[11px] font-medium text-slate-400">Background Style</label>
               <div className="grid grid-cols-2 gap-2">
-                {['transparent', 'ethereal'].map(s => (
+                {['transparent', 'custom', 'ethereal', 'image'].map(s => (
                   <button
                     key={s}
                     onClick={() => editorState.setStyle(s)}
@@ -279,48 +255,171 @@ export function HomeView({
               </div>
             </div>
 
-            {editorState.style === 'ethereal' && (
-              <div className="space-y-1.5">
-                <div className="flex justify-between">
-                  <label className="text-[11px] font-medium text-slate-400">Blob Count</label>
-                  <span className="text-[10px] text-slate-500 font-mono">{editorState.blobCount}</span>
+            {(editorState.style === 'custom' || editorState.style === 'ethereal') && (
+              <div className="space-y-4 pt-2 border-t border-slate-800/50">
+                
+                {/* Blob Count for Ethereal */}
+                {editorState.style === 'ethereal' && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between">
+                      <label className="text-[11px] font-medium text-slate-400">Blob Count</label>
+                      <span className="text-[10px] text-slate-500 font-mono">{editorState.blobCount}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1" max="100"
+                      value={editorState.blobCount}
+                      onChange={(e) => editorState.setBlobCount(Number(e.target.value))}
+                      className="w-full custom-range"
+                    />
+                  </div>
+                )}
+
+                {/* Gradient Toggle */}
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-medium text-slate-400">Gradient Fill</label>
+                  <Switch
+                    checked={editorState.bgGradient.enabled}
+                    onChange={(checked) => editorState.setBgGradient({ ...editorState.bgGradient, enabled: checked })}
+                  />
                 </div>
-                <input
-                  type="range"
-                  min="1" max="10"
-                  value={editorState.blobCount}
-                  onChange={(e) => editorState.setBlobCount(Number(e.target.value))}
-                  className="w-full custom-range"
-                />
+
+                {/* Solid Color Picker (only if gradient is disabled) */}
+                {!editorState.bgGradient.enabled && (
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-slate-400">
+                      {editorState.style === 'ethereal' ? 'Blob Color' : 'Background Color'}
+                    </label>
+                    <div className="flex items-center gap-2 h-[34px]">
+                      <input
+                        type="text"
+                        value={editorState.bgColor}
+                        onChange={(e) => editorState.setBgColor(e.target.value)}
+                        className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
+                      />
+                      <div className="relative w-8 h-8 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
+                        <div className="absolute inset-0" style={{ backgroundColor: editorState.bgColor.startsWith('#') ? editorState.bgColor : '#000000' }} />
+                        <input
+                          type="color"
+                          value={editorState.bgColor.startsWith('#') ? editorState.bgColor : '#000000'}
+                          onChange={(e) => editorState.setBgColor(e.target.value)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Gradient Controls */}
+                {editorState.bgGradient.enabled && (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-medium text-slate-400">Angle ({editorState.bgGradient.angle}°)</label>
+                      <input
+                        type="range"
+                        min="0" max="360"
+                        value={editorState.bgGradient.angle}
+                        onChange={(e) => editorState.setBgGradient({ ...editorState.bgGradient, angle: Number(e.target.value) })}
+                        className="w-full custom-range"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-medium text-slate-400">Gradient Preview</label>
+                      <GradientSlider
+                        stops={editorState.bgGradient.stops}
+                        onChange={(newStops) => editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-medium text-slate-400">Colors</label>
+                      {editorState.bgGradient.stops.map((stop: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <div className="relative w-6 h-6 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
+                            <div className="absolute inset-0" style={{ backgroundColor: stop.color }} />
+                            <input
+                              type="color"
+                              value={stop.color}
+                              onChange={(e) => {
+                                const newStops = [...editorState.bgGradient.stops];
+                                newStops[idx] = { ...newStops[idx], color: e.target.value };
+                                editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops });
+                              }}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                          </div>
+                          <span className="text-xs font-mono text-slate-400 flex-1">{stop.color}</span>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={Math.round(stop.offset * 100)}
+                              onChange={(e) => {
+                                const newStops = [...editorState.bgGradient.stops];
+                                const val = Math.max(0, Math.min(100, Number(e.target.value)));
+                                newStops[idx] = { ...newStops[idx], offset: val / 100 };
+                                editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops });
+                              }}
+                              className="w-12 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-right focus:border-blue-500 outline-none transition-all"
+                            />
+                            <span className="text-xs text-slate-500">%</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const newStops = editorState.bgGradient.stops.filter((_: any, i: number) => i !== idx);
+                              editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops });
+                            }}
+                            className="text-slate-600 hover:text-red-400"
+                          >
+                            <Icons.Trash size={12} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          const newStops = [...editorState.bgGradient.stops, { offset: 0.5, color: '#ffffff' }];
+                          editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops.sort((a: any, b: any) => a.offset - b.offset) });
+                        }}
+                        className="w-full py-1.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-400 rounded border border-slate-700 transition-colors"
+                      >
+                        + Add Stop
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-[11px] font-medium text-slate-400">Background Image</label>
-              <input
-                type="text"
-                value={editorState.bgImage}
-                onChange={(e) => editorState.setBgImage(e.target.value)}
-                placeholder="https://..."
-                className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all placeholder:text-slate-600"
-              />
-              {editorState.bgImage && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => editorState.setBgFit('cover')}
-                    className={`flex-1 py-1.5 text-[10px] font-medium rounded border transition-all ${editorState.bgFit === 'cover' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-600'}`}
-                  >
-                    Cover
-                  </button>
-                  <button
-                    onClick={() => editorState.setBgFit('contain')}
-                    className={`flex-1 py-1.5 text-[10px] font-medium rounded border transition-all ${editorState.bgFit === 'contain' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-600'}`}
-                  >
-                    Contain
-                  </button>
-                </div>
-              )}
-            </div>
+            {editorState.style === 'image' && (
+              <div className="space-y-2 pt-2 border-t border-slate-800/50">
+                <label className="text-[11px] font-medium text-slate-400">Background Image URL</label>
+                <input
+                  type="text"
+                  value={editorState.bgImage}
+                  onChange={(e) => editorState.setBgImage(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all placeholder:text-slate-600"
+                />
+                {editorState.bgImage && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => editorState.setBgFit('cover')}
+                      className={`flex-1 py-1.5 text-[10px] font-medium rounded border transition-all ${editorState.bgFit === 'cover' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-600'}`}
+                    >
+                      Cover
+                    </button>
+                    <button
+                      onClick={() => editorState.setBgFit('contain')}
+                      className={`flex-1 py-1.5 text-[10px] font-medium rounded border transition-all ${editorState.bgFit === 'contain' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-600'}`}
+                    >
+                      Contain
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-800">
               <label className="text-[11px] font-medium text-slate-400">Show Grid</label>
@@ -417,12 +516,15 @@ export function HomeView({
                             onChange={(e) => updateSelected('color', e.target.value)}
                             className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
                           />
-                          <input
-                            type="color"
-                            value={(elements.find(el => el.id === selectedIds[0])?.color || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.color : '#000000'}
-                            onChange={(e) => updateSelected('color', e.target.value)}
-                            className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0"
-                          />
+                          <div className="relative w-8 h-8 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
+                            <div className="absolute inset-0" style={{ backgroundColor: (elements.find(el => el.id === selectedIds[0])?.color || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.color : '#000000' }} />
+                            <input
+                              type="color"
+                              value={(elements.find(el => el.id === selectedIds[0])?.color || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.color : '#000000'}
+                              onChange={(e) => updateSelected('color', e.target.value)}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                          </div>
                         </div>
                         {/* Document Colors */}
                         <div className="flex flex-wrap gap-1 pt-1">
@@ -542,12 +644,15 @@ export function HomeView({
                                 onChange={(e) => updateSelected('shadowColor', e.target.value)}
                                 className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
                               />
-                              <input
-                                type="color"
-                                value={(elements.find(el => el.id === selectedIds[0])?.shadowColor || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.shadowColor : '#000000'}
-                                onChange={(e) => updateSelected('shadowColor', e.target.value)}
-                                className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0 shrink-0"
-                              />
+                              <div className="relative w-8 h-8 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
+                                <div className="absolute inset-0" style={{ backgroundColor: (elements.find(el => el.id === selectedIds[0])?.shadowColor || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.shadowColor : '#000000' }} />
+                                <input
+                                  type="color"
+                                  value={(elements.find(el => el.id === selectedIds[0])?.shadowColor || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.shadowColor : '#000000'}
+                                  onChange={(e) => updateSelected('shadowColor', e.target.value)}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                              </div>
                             </div>
                           </div>
                           <div className="space-y-1.5">
@@ -604,15 +709,18 @@ export function HomeView({
                                 }}
                                 className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
                               />
-                              <input
-                                type="color"
-                                value={(elements.find(el => el.id === selectedIds[0])?.neon?.color || '#00ff00').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.neon?.color : '#00ff00'}
-                                onChange={(e) => {
-                                  const el = elements.find(el => el.id === selectedIds[0]);
-                                  updateSelected('neon', { ...el?.neon, color: e.target.value });
-                                }}
-                                className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0 shrink-0"
-                              />
+                              <div className="relative w-8 h-8 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
+                                <div className="absolute inset-0" style={{ backgroundColor: (elements.find(el => el.id === selectedIds[0])?.neon?.color || '#00ff00').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.neon?.color : '#00ff00' }} />
+                                <input
+                                  type="color"
+                                  value={(elements.find(el => el.id === selectedIds[0])?.neon?.color || '#00ff00').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.neon?.color : '#00ff00'}
+                                  onChange={(e) => {
+                                    const el = elements.find(el => el.id === selectedIds[0]);
+                                    updateSelected('neon', { ...el?.neon, color: e.target.value });
+                                  }}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                              </div>
                             </div>
                           </div>
                           <div className="col-span-2 space-y-1.5">
@@ -690,19 +798,38 @@ export function HomeView({
                             <label className="text-[11px] font-medium text-slate-400">Colors</label>
                             {elements.find(el => el.id === selectedIds[0])?.gradient?.stops?.map((stop, idx) => (
                               <div key={idx} className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={stop.color.startsWith('#') ? stop.color : '#000000'}
-                                  onChange={(e) => {
-                                    const el = elements.find(el => el.id === selectedIds[0]);
-                                    const newStops = [...(el?.gradient?.stops || [])];
-                                    newStops[idx] = { ...newStops[idx], color: e.target.value };
-                                    updateSelected('gradient', { ...el?.gradient, stops: newStops });
-                                  }}
-                                  className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-                                />
+                                <div className="relative w-6 h-6 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
+                                  <div className="absolute inset-0" style={{ backgroundColor: stop.color.startsWith('#') ? stop.color : '#000000' }} />
+                                  <input
+                                    type="color"
+                                    value={stop.color.startsWith('#') ? stop.color : '#000000'}
+                                    onChange={(e) => {
+                                      const el = elements.find(el => el.id === selectedIds[0]);
+                                      const newStops = [...(el?.gradient?.stops || [])];
+                                      newStops[idx] = { ...newStops[idx], color: e.target.value };
+                                      updateSelected('gradient', { ...el?.gradient, stops: newStops });
+                                    }}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  />
+                                </div>
                                 <span className="text-xs font-mono text-slate-400 flex-1">{stop.color}</span>
-                                <span className="text-xs text-slate-500 w-12 text-right">{Math.round(stop.offset * 100)}%</span>
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={Math.round(stop.offset * 100)}
+                                    onChange={(e) => {
+                                      const el = elements.find(el => el.id === selectedIds[0]);
+                                      const newStops = [...(el?.gradient?.stops || [])];
+                                      const val = Math.max(0, Math.min(100, Number(e.target.value)));
+                                      newStops[idx] = { ...newStops[idx], offset: val / 100 };
+                                      updateSelected('gradient', { ...el?.gradient, stops: newStops });
+                                    }}
+                                    className="w-12 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-right focus:border-blue-500 outline-none transition-all"
+                                  />
+                                  <span className="text-xs text-slate-500">%</span>
+                                </div>
                                 <button
                                   onClick={() => {
                                     const el = elements.find(el => el.id === selectedIds[0]);
@@ -786,6 +913,8 @@ export function HomeView({
                   blobCount={editorState.blobCount}
                   showGrid={editorState.showGrid}
                   style={editorState.style}
+                  bgColor={editorState.bgColor}
+                  bgGradient={editorState.bgGradient}
                 />
               </div>
             </div>
@@ -817,6 +946,85 @@ export function HomeView({
           </div>
         </div>
       </main>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+          onClick={() => setShowPreview(false)}
+        >
+          {/* Toolbar */}
+          <div 
+            className="absolute top-6 right-6 flex items-center gap-2 bg-slate-900/80 backdrop-blur p-1 rounded-lg border border-slate-800 z-10"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPreviewZoom(z => Math.max(0.1, z - 0.1))}
+              className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-200 transition-colors"
+              title="Zoom Out"
+            >
+              <Icons.ZoomOut size={16} />
+            </button>
+            <span className="text-xs font-mono text-slate-400 w-12 text-center">
+              {Math.round(previewZoom * 100)}%
+            </span>
+            <button
+              onClick={() => setPreviewZoom(z => Math.min(3, z + 0.1))}
+              className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-200 transition-colors"
+              title="Zoom In"
+            >
+              <Icons.ZoomIn size={16} />
+            </button>
+            <div className="w-px h-4 bg-slate-800 mx-1" />
+            <button
+              onClick={() => setPreviewDarkMode(!previewDarkMode)}
+              className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-200 transition-colors"
+              title={previewDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {previewDarkMode ? <Icons.Sun size={16} /> : <Icons.Moon size={16} />}
+            </button>
+            <div className="w-px h-4 bg-slate-800 mx-1" />
+            <button
+              onClick={() => setShowPreview(false)}
+              className="px-3 py-1.5 hover:bg-red-500/20 hover:text-red-400 rounded-md text-slate-400 transition-colors text-xs font-medium"
+            >
+              Close
+            </button>
+          </div>
+
+          {/* Content Container - Scrollable */}
+          <div className="w-full h-full overflow-auto flex custom-scrollbar">
+            <div 
+              className="relative m-auto p-8"
+              style={{
+                width: `${editorState.canvasWidth * previewZoom + 64}px`,
+                height: `${editorState.canvasHeight * previewZoom + 64}px`
+              }}
+            >
+              <div 
+                style={{ 
+                  transform: `scale(${previewZoom})`, 
+                  transformOrigin: 'top left',
+                  transition: 'transform 0.2s',
+                  width: editorState.canvasWidth,
+                  height: editorState.canvasHeight
+                }} 
+                onClick={e => e.stopPropagation()}
+                className={`shadow-2xl relative transition-colors duration-300 ${previewDarkMode ? 'bg-[#0d1117]' : 'bg-white'}`}
+              >
+                <img 
+                  src={getUrl(true)} 
+                  width={editorState.canvasWidth} 
+                  height={editorState.canvasHeight} 
+                  className="block select-none"
+                  style={{ pointerEvents: 'none' }}
+                  alt="Widget Preview"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

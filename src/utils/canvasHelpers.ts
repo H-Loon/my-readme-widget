@@ -21,6 +21,8 @@ interface GetApiUrlProps {
   customTo: string;
   bgImage: string;
   bgFit: string;
+  bgColor: string;
+  bgGradient: any;
   origin: string;
   forcePreview?: boolean;
 }
@@ -48,6 +50,8 @@ export const getApiUrl = ({
   customTo,
   bgImage,
   bgFit,
+  bgColor,
+  bgGradient,
   origin,
   forcePreview = false
 }: GetApiUrlProps) => {
@@ -74,6 +78,12 @@ export const getApiUrl = ({
   if (style === 'ethereal') url += `&blobs=${blobCount}`;
   if (theme === 'custom') url += `&from=${encodeURIComponent(customFrom)}&to=${encodeURIComponent(customTo)}`;
   if (bgImage) url += `&bg=${encodeURIComponent(bgImage)}&bgFit=${bgFit}`;
+  
+  // Append new background properties
+  if (bgColor) url += `&bgColor=${encodeURIComponent(bgColor)}`;
+  if (bgGradient && bgGradient.enabled) {
+    url += `&bgGradient=${encodeURIComponent(JSON.stringify(bgGradient))}`;
+  }
   
   return url;
 };

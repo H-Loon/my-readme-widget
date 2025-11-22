@@ -3,6 +3,9 @@
  * 
  * A complex custom slider for editing gradient stops.
  * Allows users to add, remove, and move color stops along a gradient bar.
+ * 
+ * Updates:
+ * - Refactored handles to be circular with hover scaling effects.
  */
 import React, { useRef, useEffect, useState } from 'react';
 import { Icons } from './Icons';
@@ -40,17 +43,17 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
 
             const rect = containerRef.current.getBoundingClientRect();
             const x = e.clientX - rect.left;
-            // Calculate percentage position (0-100)
-            let percentage = (x / rect.width) * 100;
+            // Calculate offset (0-1)
+            let offset = x / rect.width;
             
-            // Clamp between 0 and 100
-            percentage = Math.max(0, Math.min(100, percentage));
+            // Clamp between 0 and 1
+            offset = Math.max(0, Math.min(1, offset));
 
             // Update the stops array
             const newStops = [...stops];
             newStops[activeStopIndex] = {
                 ...newStops[activeStopIndex],
-                offset: Math.round(percentage)
+                offset: Number(offset.toFixed(4)) // Keep 4 decimal places
             };
             
             onChange(newStops);
@@ -74,24 +77,29 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
 
     // Add a new stop when clicking on the empty track area
     const handleTrackClick = (e: React.MouseEvent) => {
+        // If we were dragging, don't create a new stop
+        // (Though usually click doesn't fire if mousedown was stopped, but just in case)
+        if (isDragging) return;
+        
         if (!containerRef.current) return;
         
         const rect = containerRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
-        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        const offset = Math.max(0, Math.min(1, x / rect.width));
         
         // Create new stop with a default color (white)
         const newStop: GradientStop = {
-            offset: Math.round(percentage),
+            offset: Number(offset.toFixed(4)),
             color: '#ffffff'
         };
         
         onChange([...stops, newStop]);
+        setActiveStopIndex(stops.length); // Select the new stop
     };
 
     // Remove the currently selected stop
     const removeStop = (index: number, e: React.MouseEvent) => {
-        e.stopPropagation();
+        e.stopPropagation(); // Prevent track click
         // Prevent removing the last two stops (gradient needs at least 2)
         if (stops.length <= 2) return;
         
@@ -107,12 +115,20 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
         onChange(newStops);
     };
 
+    // Update offset manually
+    const handleOffsetChange = (index: number, percentage: number) => {
+        const newStops = [...stops];
+        const offset = Math.max(0, Math.min(100, percentage)) / 100;
+        newStops[index] = { ...newStops[index], offset };
+        onChange(newStops);
+    };
+
     // Generate CSS gradient string for the preview background
-    const gradientString = `linear-gradient(to right, ${sortedStops.map(s => `${s.color} ${s.offset}%`).join(', ')})`;
+    const gradientString = `linear-gradient(to right, ${sortedStops.map(s => `${s.color} ${s.offset * 100}%`).join(', ')})`;
 
     return (
         <div className={`flex flex-col gap-2 ${className}`}>
-            <div className="h-6 relative select-none" ref={containerRef} onClick={handleTrackClick}>
+            <div className="h-6 relative select-none cursor-pointer" ref={containerRef} onClick={handleTrackClick}>
                 {/* Checkerboard background for transparency */}
                 <div className="absolute inset-0 rounded-md overflow-hidden bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAAXNSR0IArs4c6QAAABtJREFUKFNj/P///38GKgImDqaXgU5Gg6X5aCgA6v0P6x5nLvoAAAAASUVORK5CYII=')] opacity-20" />
                 
@@ -126,57 +142,26 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
                 {stops.map((stop, index) => (
                     <div
                         key={index}
-                        className="absolute top-0 bottom-0 w-4 -ml-2 cursor-ew-resize group z-10"
-                        style={{ left: `${stop.offset}%` }}
+                        className="absolute top-1/2 -translate-y-1/2 w-6 h-6 -ml-3 cursor-ew-resize group z-10 flex items-center justify-center"
+                        style={{ left: `${stop.offset * 100}%` }}
                         onMouseDown={(e) => handleMouseDown(index, e)}
+                        onClick={(e) => e.stopPropagation()} // Prevent track click
                     >
                         {/* The handle visual (white circle with border) */}
                         <div className={`
-                            w-4 h-full bg-white border-2 rounded shadow-sm
-                            ${activeStopIndex === index ? 'border-blue-500 z-20' : 'border-gray-300 hover:border-gray-400'}
+                            w-5 h-5 bg-white border-2 border-white rounded-full shadow-md transition-transform duration-200 hover:scale-125
+                            ${activeStopIndex === index ? 'scale-110 ring-2 ring-blue-500/50' : ''}
                         `}>
                             {/* Color preview inside the handle */}
                             <div 
-                                className="w-full h-full rounded-sm"
+                                className="w-full h-full rounded-full border border-black/10"
                                 style={{ backgroundColor: stop.color }}
                             />
                         </div>
-                        
-                        {/* Delete button that appears on hover (if more than 2 stops) */}
-                        {stops.length > 2 && (
-                            <button
-                                className="absolute -bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:flex bg-red-500 text-white rounded-full p-0.5 shadow-sm"
-                                onClick={(e) => removeStop(index, e)}
-                                title="Remove stop"
-                            >
-                                <Icons.Plus size={10} className="rotate-45" />
-                            </button>
-                        )}
                     </div>
                 ))}
             </div>
 
-            {/* Color picker for the active stop */}
-            {activeStopIndex !== null && stops[activeStopIndex] && (
-                <div className="flex items-center gap-2 mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                    <span className="text-xs text-gray-500">Color:</span>
-                    <input
-                        type="color"
-                        value={stops[activeStopIndex].color}
-                        onChange={(e) => handleColorChange(activeStopIndex, e.target.value)}
-                        className="w-6 h-6 rounded cursor-pointer border-none p-0"
-                    />
-                    <input
-                        type="text"
-                        value={stops[activeStopIndex].color}
-                        onChange={(e) => handleColorChange(activeStopIndex, e.target.value)}
-                        className="flex-1 text-xs bg-transparent border-none focus:ring-0 font-mono"
-                    />
-                    <span className="text-xs text-gray-500">
-                        {stops[activeStopIndex].offset}%
-                    </span>
-                </div>
-            )}
         </div>
     );
 };

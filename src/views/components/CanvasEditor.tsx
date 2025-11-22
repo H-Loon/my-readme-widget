@@ -9,6 +9,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Stage, Layer, Text, Image as KonvaImage, Transformer, Rect, Group, Line } from 'react-konva';
 import useImage from 'use-image';
+import { EtherealBackground } from './EtherealBackground';
 
 // Grid size for snapping (20px)
 const GRID_SIZE = 20;
@@ -72,6 +73,13 @@ interface CanvasEditorProps {
   blobCount?: number;
   showGrid?: boolean;
   style?: string;
+  bgColor?: string;
+  bgGradient?: {
+    enabled: boolean;
+    type: 'linear';
+    angle: number;
+    stops: GradientStop[];
+  };
 }
 
 /**
@@ -309,10 +317,21 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
  * Renders the background image or color.
  * Handles different fit modes (cover, contain, stretch).
  */
-const BackgroundLayer = ({ width, height, bgImage, bgFit, theme, customFrom, customTo, blobCount, style }: any) => {
+const BackgroundLayer = ({ width, height, bgImage, bgFit, theme, customFrom, customTo, blobCount, style, bgColor, bgGradient }: any) => {
   const [image] = useImage(bgImage || '', 'anonymous');
 
-  if (bgImage && image) {
+  // If using Ethereal style, the background is handled by the HTML layer behind the canvas
+  if (style === 'ethereal') {
+    return null;
+  }
+
+  // If the background is a GIF, it is handled by the HTML layer
+  if (bgImage && bgImage.toLowerCase().endsWith('.gif')) {
+    return null;
+  }
+
+  // Only render image if style is explicitly 'image'
+  if (style === 'image' && bgImage && image) {
     let props: any = { width, height };
 
     if (bgFit === 'stretch') {
@@ -360,8 +379,35 @@ const BackgroundLayer = ({ width, height, bgImage, bgFit, theme, customFrom, cus
   }
 
   // Fallback to simple gradient or color based on theme
-  if (style === 'transparent' || theme === 'transparent') {
+  if (style === 'transparent') {
     return null;
+  }
+
+  if (style === 'custom') {
+    if (bgGradient?.enabled && bgGradient.stops && bgGradient.stops.length > 0) {
+       const angleRad = (bgGradient.angle - 90) * (Math.PI / 180);
+       const cx = width / 2;
+       const cy = height / 2;
+       const r = Math.sqrt(width * width + height * height) / 2;
+       const startX = cx - r * Math.cos(angleRad);
+       const startY = cy - r * Math.sin(angleRad);
+       const endX = cx + r * Math.cos(angleRad);
+       const endY = cy + r * Math.sin(angleRad);
+       
+       const sortedStops = [...bgGradient.stops].sort((a: any, b: any) => a.offset - b.offset);
+       const stops = sortedStops.flatMap((s: any) => [s.offset, s.color]);
+
+       return (
+         <Rect
+           width={width}
+           height={height}
+           fillLinearGradientStartPoint={{ x: startX, y: startY }}
+           fillLinearGradientEndPoint={{ x: endX, y: endY }}
+           fillLinearGradientColorStops={stops}
+         />
+       );
+    }
+    return <Rect width={width} height={height} fill={bgColor || '#0f172a'} />;
   }
 
   let fill = '#0f172a';
@@ -413,7 +459,7 @@ const GridLayer = ({ width, height }: { width: number; height: number }) => {
 /**
  * Main CanvasEditor Component
  */
-export default function CanvasEditor({ width, height, elements, selectedIds, onSelect, onChange, bgImage, bgFit, theme, customFrom, customTo, blobCount, showGrid, style }: CanvasEditorProps) {
+export default function CanvasEditor({ width, height, elements, selectedIds, onSelect, onChange, bgImage, bgFit, theme, customFrom, customTo, blobCount, showGrid, style, bgColor, bgGradient }: CanvasEditorProps) {
   const trRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
   const shapeRefs = useRef<any>({});
@@ -580,54 +626,104 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
     onChange(newElements, saveHistory);
   };
 
+  // Determine if we need to render the HTML background layer
+  const isEthereal = style === 'ethereal';
+  const isGif = style === 'image' && bgImage && bgImage.toLowerCase().endsWith('.gif');
+  const showHtmlBackground = isEthereal || isGif;
+
   return (
-    <div className="shadow-2xl overflow-hidden bg-[url('https://res.cloudinary.com/practicaldev/image/fetch/s--_MCEk7P6--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/i/1wwdyw5de8avrdkgtz5n.png')] bg-repeat" style={{ width, height }}>
-      <Stage width={width} height={height} onMouseDown={checkDeselect} onTouchStart={checkDeselect}>
-        <Layer ref={layerRef}>
-          <BackgroundLayer
-            width={width}
-            height={height}
-            bgImage={bgImage}
-            bgFit={bgFit}
-            theme={theme}
-            customFrom={customFrom}
-            customTo={customTo}
-            blobCount={blobCount}
-            style={style}
-          />
-          {showGrid && <GridLayer width={width} height={height} />}
-          
-          {elements.map((el) => {
-            const commonProps = {
-                element: el,
-                isSelected: selectedIds.includes(el.id),
-                onSelect: handleSelect,
-                onChange: handleElementUpdate,
-                showGrid,
-                onRegister: handleRegister,
-                onDragStart: onDragStart,
-                onDragMove: onDragMove,
-                onDragEnd: onDragEnd,
-                onTransformEnd: onTransformEnd
-            };
+    <div 
+      className="shadow-2xl overflow-hidden relative bg-white" 
+      style={{ 
+        width, 
+        height,
+        backgroundImage: `
+          linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
+          linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), 
+          linear-gradient(45deg, transparent 75%, #f0f0f0 75%), 
+          linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)
+        `,
+        backgroundSize: '20px 20px',
+        backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
+      }}
+    >
+      {/* HTML Background Layer (Sandwich Method) */}
+      {showHtmlBackground && (
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          {isEthereal && (
+            <EtherealBackground
+              width={width}
+              height={height}
+              theme={theme || 'blue'}
+              blobCount={blobCount || 5}
+              customFrom={customFrom}
+              customTo={customTo}
+              bgColor={bgColor}
+              bgGradient={bgGradient}
+            />
+          )}
+          {isGif && (
+            <img 
+              src={bgImage} 
+              alt="Background" 
+              className="w-full h-full"
+              style={{ objectFit: bgFit === 'stretch' ? 'fill' : (bgFit || 'cover') }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Konva Canvas Layer */}
+      <div className="relative z-10">
+        <Stage width={width} height={height} onMouseDown={checkDeselect} onTouchStart={checkDeselect}>
+          <Layer ref={layerRef}>
+            <BackgroundLayer
+              width={width}
+              height={height}
+              bgImage={bgImage}
+              bgFit={bgFit}
+              theme={theme}
+              customFrom={customFrom}
+              customTo={customTo}
+              blobCount={blobCount}
+              style={style}
+              bgColor={bgColor}
+              bgGradient={bgGradient}
+            />
+            {showGrid && <GridLayer width={width} height={height} />}
             
-            if (el.type === 'image') {
-              return <URLImage key={el.id} src={el.src} {...commonProps} />;
-            }
-            return <EditableText key={el.id} {...commonProps} />;
-          })}
-          
-          <Transformer
-            ref={trRef}
-            boundBoxFunc={(oldBox, newBox) => {
-              if (newBox.width < 5 || newBox.height < 5) {
-                return oldBox;
+            {elements.map((el) => {
+              const commonProps = {
+                  element: el,
+                  isSelected: selectedIds.includes(el.id),
+                  onSelect: handleSelect,
+                  onChange: handleElementUpdate,
+                  showGrid,
+                  onRegister: handleRegister,
+                  onDragStart: onDragStart,
+                  onDragMove: onDragMove,
+                  onDragEnd: onDragEnd,
+                  onTransformEnd: onTransformEnd
+              };
+              
+              if (el.type === 'image') {
+                return <URLImage key={el.id} src={el.src} {...commonProps} />;
               }
-              return newBox;
-            }}
-          />
-        </Layer>
-      </Stage>
+              return <EditableText key={el.id} {...commonProps} />;
+            })}
+            
+            <Transformer
+              ref={trRef}
+              boundBoxFunc={(oldBox, newBox) => {
+                if (newBox.width < 5 || newBox.height < 5) {
+                  return oldBox;
+                }
+                return newBox;
+              }}
+            />
+          </Layer>
+        </Stage>
+      </div>
     </div>
   );
 }

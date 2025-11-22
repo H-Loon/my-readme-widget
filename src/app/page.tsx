@@ -177,6 +177,8 @@ export default function Home() {
     customTo: editorState.customTo,
     bgImage: editorState.bgImage,
     bgFit: editorState.bgFit,
+    bgColor: editorState.bgColor,
+    bgGradient: editorState.bgGradient,
     origin,
     forcePreview
   });

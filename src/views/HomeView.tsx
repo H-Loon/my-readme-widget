@@ -945,15 +945,19 @@ export function HomeView({
               {/* Image Properties */}
               {elements.find(el => el.id === selectedIds[0])?.type === 'image' && (
                 <>
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-medium text-slate-400">Image URL</label>
+                  <div className="space-y-2 p-3 bg-slate-900/50 rounded-lg border border-slate-800/50">
+                    <label className="text-[11px] font-medium text-blue-400">Image / Badge Source URL</label>
                     <input
                       type="text"
                       value={elements.find(el => el.id === selectedIds[0])?.src || ''}
                       onChange={(e) => updateSelected('src', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                      placeholder="https://example.com/image.png or ![alt](url)"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all placeholder:text-slate-600"
                       aria-label="Image URL"
                     />
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      Paste a direct image link, a shields.io badge URL, or even a Markdown image tag.
+                    </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={fitToWidth} className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-md transition-all text-xs font-medium" aria-label="Fit Image to Width">

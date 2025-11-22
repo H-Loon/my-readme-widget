@@ -32,7 +32,7 @@ export function useCanvasOperations({
    * Helper function to load an image and determine its natural dimensions.
    * It ensures the image fits within a reasonable size (max 250px width) initially.
    */
-  const resolveImageDimensions = (src: string, id: string) => {
+  const resolveImageDimensions = (src: string, id: string, currentElements: CanvasElement[]) => {
     const img = new Image();
     img.onload = () => {
       const maxW = 250;
@@ -47,7 +47,7 @@ export function useCanvasOperations({
       }
 
       // Update the element with the correct dimensions
-      const newElements = elements.map(el => {
+      const newElements = currentElements.map(el => {
         if (el.id === id) {
           return {
             ...el,
@@ -108,7 +108,7 @@ export function useCanvasOperations({
     setSelectedIds([newId]);
     
     // Calculate real dimensions after adding
-    resolveImageDimensions(defaultSrc, newId);
+    resolveImageDimensions(defaultSrc, newId, newElements);
   };
 
   /**
@@ -120,10 +120,17 @@ export function useCanvasOperations({
   const updateSelected = (key: keyof CanvasElement, value: any) => {
     let finalValue = value;
     
-    // Special handling for GitHub Readme Stats URLs to ensure animations are disabled (for static images).
+    // Special handling for Image Source updates
     if (key === 'src' && typeof value === 'string') {
-      if (value.includes('github-readme-stats.vercel.app') && !value.includes('disable_animations')) {
-        finalValue += value.includes('?') ? '&disable_animations=true' : '?disable_animations=true';
+      // 1. Handle Markdown image syntax: ![alt](url)
+      const mdMatch = value.match(/!\[.*?\]\((.*?)\)/);
+      if (mdMatch && mdMatch[1]) {
+        finalValue = mdMatch[1];
+      }
+
+      // 2. Handle GitHub Readme Stats URLs to ensure animations are disabled
+      if (finalValue.includes('github-readme-stats.vercel.app') && !finalValue.includes('disable_animations')) {
+        finalValue += finalValue.includes('?') ? '&disable_animations=true' : '?disable_animations=true';
       }
     }
 
@@ -138,7 +145,7 @@ export function useCanvasOperations({
     
     // If image source changed, recalculate dimensions.
     if (key === 'src') {
-      selectedIds.forEach(id => resolveImageDimensions(finalValue, id));
+      selectedIds.forEach(id => resolveImageDimensions(finalValue, id, newElements));
     }
   };
 

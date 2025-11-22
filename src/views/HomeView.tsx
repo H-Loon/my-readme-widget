@@ -91,6 +91,50 @@ export function HomeView({
   const [previewZoom, setPreviewZoom] = React.useState(1);
   const [previewDarkMode, setPreviewDarkMode] = React.useState(true);
 
+  // Layering Logic
+  const moveSelected = (direction: 'front' | 'back' | 'forward' | 'backward') => {
+    if (selectedIds.length === 0) return;
+    
+    let newElements = [...elements];
+    // Get indices of selected items sorted ascending
+    const selectedIndices = elements
+      .map((el, i) => selectedIds.includes(el.id) ? i : -1)
+      .filter(i => i !== -1)
+      .sort((a, b) => a - b);
+    
+    if (selectedIndices.length === 0) return;
+
+    if (direction === 'front') {
+        // Move all selected to the end
+        const selectedEls = selectedIndices.map(i => newElements[i]);
+        const unselectedEls = newElements.filter((_, i) => !selectedIndices.includes(i));
+        newElements = [...unselectedEls, ...selectedEls];
+    } else if (direction === 'back') {
+        // Move all selected to the start
+        const selectedEls = selectedIndices.map(i => newElements[i]);
+        const unselectedEls = newElements.filter((_, i) => !selectedIndices.includes(i));
+        newElements = [...selectedEls, ...unselectedEls];
+    } else if (direction === 'forward') {
+        // Move each selected item one step up (iterate from end to start)
+        for (let i = selectedIndices.length - 1; i >= 0; i--) {
+            const idx = selectedIndices[i];
+            if (idx < newElements.length - 1) {
+               [newElements[idx], newElements[idx + 1]] = [newElements[idx + 1], newElements[idx]];
+            }
+        }
+    } else if (direction === 'backward') {
+        // Iterate from start to end
+        for (let i = 0; i < selectedIndices.length; i++) {
+            const idx = selectedIndices[i];
+            if (idx > 0) {
+                [newElements[idx], newElements[idx - 1]] = [newElements[idx - 1], newElements[idx]];
+            }
+        }
+    }
+    
+    handleElementsChange(newElements);
+  };
+
   // Helper to get opacity percentage from color string
   const getOpacity = (color: string): number => {
     if (!color) return 100;
@@ -175,10 +219,16 @@ export function HomeView({
                 Made by H-Loon
               </a>
               <button
-                onClick={() => window.open('https://github.com/H-Loon/my-readme-widget/issues/new', '_blank')}
+                onClick={() => window.open('https://github.com/H-Loon/my-readme-widget/issues/new?title=Issue:%20', '_blank')}
                 className="text-[10px] font-medium text-slate-500 hover:text-red-400 hover:border-red-400 transition-colors border border-slate-800 rounded-full px-2 py-0.5 bg-slate-900/50"
               >
                 Report Issue
+              </button>
+              <button
+                onClick={() => window.open('https://github.com/H-Loon/my-readme-widget/issues/new?labels=enhancement&title=Feature%20Request:%20', '_blank')}
+                className="text-[10px] font-medium text-slate-500 hover:text-yellow-400 hover:border-yellow-400 transition-colors border border-slate-800 rounded-full px-2 py-0.5 bg-slate-900/50"
+              >
+                Ask Feature
               </button>
             </div>
           </div>
@@ -571,6 +621,42 @@ export function HomeView({
                 </h3>
                 <button onClick={deleteSelected} className="text-slate-500 hover:text-red-400 transition-colors" aria-label="Delete Selected Element">
                   <Icons.Trash size={16} />
+                </button>
+              </div>
+
+              {/* Layering Controls */}
+              <div className="flex gap-1 bg-slate-900 p-1 rounded-md border border-slate-800">
+                <button
+                  onClick={() => moveSelected('back')}
+                  className="flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center text-slate-400 hover:text-slate-200"
+                  title="Send to Back"
+                  aria-label="Send to Back"
+                >
+                  <Icons.ChevronsDown size={16} />
+                </button>
+                <button
+                  onClick={() => moveSelected('backward')}
+                  className="flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center text-slate-400 hover:text-slate-200"
+                  title="Send Backward"
+                  aria-label="Send Backward"
+                >
+                  <Icons.ArrowDown size={16} />
+                </button>
+                <button
+                  onClick={() => moveSelected('forward')}
+                  className="flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center text-slate-400 hover:text-slate-200"
+                  title="Bring Forward"
+                  aria-label="Bring Forward"
+                >
+                  <Icons.ArrowUp size={16} />
+                </button>
+                <button
+                  onClick={() => moveSelected('front')}
+                  className="flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center text-slate-400 hover:text-slate-200"
+                  title="Bring to Front"
+                  aria-label="Bring to Front"
+                >
+                  <Icons.ChevronsUp size={16} />
                 </button>
               </div>
 

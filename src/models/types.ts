@@ -74,6 +74,8 @@ export interface CanvasElement {
     intensity: number;
     /** How far the glow spreads (propagation). */
     propagation?: number;
+    /** The width of the neon stroke. */
+    strokeWidth?: number;
   };
 
   // --- Gradient Fill Properties ---

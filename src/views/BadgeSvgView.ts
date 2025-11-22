@@ -159,7 +159,7 @@ export class BadgeSvgView {
           const propagation = el.neon.propagation || 2;
           // CSS text-shadow for neon effect
           shadowStyle = `text-shadow: 0 0 ${el.neon.intensity}px ${el.neon.color}, 0 0 ${el.neon.intensity * propagation}px ${el.neon.color};`;
-          strokeAttr = `stroke="${el.neon.color}" stroke-width="2"`;
+          strokeAttr = `stroke="${el.neon.color}" stroke-width="${el.neon.strokeWidth || 2}"`;
         } else if (el.shadowColor && el.shadowColor !== 'transparent') {
           shadowStyle = `text-shadow: ${el.shadowOffsetX || 0}px ${el.shadowOffsetY || 0}px ${el.shadowBlur || 0}px ${el.shadowColor};`;
         }

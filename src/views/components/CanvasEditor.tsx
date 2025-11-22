@@ -42,6 +42,8 @@ interface CanvasElement {
     enabled: boolean;
     color: string;
     intensity: number;
+    propagation?: number;
+    strokeWidth?: number;
   };
   gradient?: {
     enabled: boolean;
@@ -241,7 +243,7 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
     };
     strokeProps = {
       stroke: element.neon.color,
-      strokeWidth: 2
+      strokeWidth: element.neon.strokeWidth || 2
     };
   } else if (element.shadowEnabled) {
     shadowProps = {

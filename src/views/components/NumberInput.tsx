@@ -56,6 +56,7 @@ export function NumberInput({ className, value, onChange, min, max, step = 1, ..
           onClick={handleIncrement}
           className="flex-1 flex items-center justify-center hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors rounded-tr-md"
           tabIndex={-1}
+          aria-label="Increment"
         >
           <Icons.ChevronUp size={10} />
         </button>
@@ -63,6 +64,7 @@ export function NumberInput({ className, value, onChange, min, max, step = 1, ..
           onClick={handleDecrement}
           className="flex-1 flex items-center justify-center hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors border-t border-slate-800 rounded-br-md"
           tabIndex={-1}
+          aria-label="Decrement"
         >
           <Icons.ChevronDown size={10} />
         </button>

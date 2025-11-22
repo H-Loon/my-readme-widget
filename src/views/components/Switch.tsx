@@ -10,9 +10,10 @@ interface SwitchProps {
     checked: boolean;           // Current state (on/off)
     onChange: (checked: boolean) => void; // Callback when toggled
     label?: string;             // Optional text label to display next to the switch
+    'aria-label'?: string;      // Accessibility label
 }
 
-export const Switch: React.FC<SwitchProps> = ({ checked, onChange, label }) => {
+export const Switch: React.FC<SwitchProps> = ({ checked, onChange, label, 'aria-label': ariaLabel }) => {
     return (
         <label className="flex items-center gap-2 cursor-pointer group">
             <div className="relative">
@@ -22,6 +23,7 @@ export const Switch: React.FC<SwitchProps> = ({ checked, onChange, label }) => {
                     className="sr-only"
                     checked={checked}
                     onChange={(e) => onChange(e.target.checked)}
+                    aria-label={ariaLabel || label}
                 />
                 
                 {/* The track (background) of the switch */}

@@ -109,6 +109,7 @@ export function HomeView({
                 rel="noopener noreferrer"
                 className="text-slate-400 hover:text-white transition-colors"
                 title="View Project on GitHub"
+                aria-label="View Project on GitHub"
               >
                 <Icons.Github size={20} />
               </a>
@@ -131,6 +132,7 @@ export function HomeView({
                 disabled={historyStep === 0}
                 className="p-2 hover:bg-slate-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 title="Undo (Ctrl+Z)"
+                aria-label="Undo"
               >
                 <Icons.Undo size={18} />
               </button>
@@ -139,6 +141,7 @@ export function HomeView({
                 disabled={historyStep === history.length - 1}
                 className="p-2 hover:bg-slate-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 title="Redo (Ctrl+Y)"
+                aria-label="Redo"
               >
                 <Icons.Redo size={18} />
               </button>
@@ -150,6 +153,7 @@ export function HomeView({
                 onChange={(e) => widgetState.setWidgetName(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2 text-sm text-slate-200 focus:border-blue-500 outline-none transition-all placeholder:text-slate-600"
                 placeholder="Widget Name"
+                aria-label="Widget Name"
               />
             </div>
           </div>
@@ -223,6 +227,7 @@ export function HomeView({
                     <button
                       onClick={(e) => deleteWidget(w.id, e)}
                       className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-opacity"
+                      aria-label={`Delete widget ${w.name}`}
                     >
                       <Icons.Trash size={14} />
                     </button>
@@ -243,6 +248,7 @@ export function HomeView({
                   value={editorState.canvasWidth}
                   onChange={(val) => editorState.setCanvasWidth(val)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                  aria-label="Canvas Width"
                 />
               </div>
               <div className="space-y-1.5">
@@ -251,6 +257,7 @@ export function HomeView({
                   value={editorState.canvasHeight}
                   onChange={(val) => editorState.setCanvasHeight(val)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                  aria-label="Canvas Height"
                 />
               </div>
             </div>
@@ -290,6 +297,7 @@ export function HomeView({
                       value={editorState.blobCount}
                       onChange={(e) => editorState.setBlobCount(Number(e.target.value))}
                       className="w-full custom-range"
+                      aria-label="Blob Count"
                     />
                   </div>
                 )}
@@ -300,6 +308,7 @@ export function HomeView({
                   <Switch
                     checked={editorState.bgGradient.enabled}
                     onChange={(checked) => editorState.setBgGradient({ ...editorState.bgGradient, enabled: checked })}
+                    aria-label="Toggle Gradient Fill"
                   />
                 </div>
 
@@ -315,6 +324,7 @@ export function HomeView({
                         value={editorState.bgColor}
                         onChange={(e) => editorState.setBgColor(e.target.value)}
                         className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
+                        aria-label="Background Color Hex"
                       />
                       <div className="relative w-8 h-8 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
                         <div className="absolute inset-0" style={{ backgroundColor: editorState.bgColor.startsWith('#') ? editorState.bgColor : '#000000' }} />
@@ -323,6 +333,7 @@ export function HomeView({
                           value={editorState.bgColor.startsWith('#') ? editorState.bgColor : '#000000'}
                           onChange={(e) => editorState.setBgColor(e.target.value)}
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          aria-label="Background Color Picker"
                         />
                       </div>
                     </div>
@@ -340,6 +351,7 @@ export function HomeView({
                         value={editorState.bgGradient.angle}
                         onChange={(e) => editorState.setBgGradient({ ...editorState.bgGradient, angle: Number(e.target.value) })}
                         className="w-full custom-range"
+                        aria-label="Gradient Angle"
                       />
                     </div>
 
@@ -366,6 +378,7 @@ export function HomeView({
                                 editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops });
                               }}
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              aria-label={`Gradient Stop Color ${idx + 1}`}
                             />
                           </div>
                           <span className="text-xs font-mono text-slate-400 flex-1">{stop.color}</span>
@@ -382,6 +395,7 @@ export function HomeView({
                                 editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops });
                               }}
                               className="w-12 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-right focus:border-blue-500 outline-none transition-all"
+                              aria-label={`Gradient Stop Offset ${idx + 1}`}
                             />
                             <span className="text-xs text-slate-500">%</span>
                           </div>
@@ -391,6 +405,7 @@ export function HomeView({
                               editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops });
                             }}
                             className="text-slate-600 hover:text-red-400"
+                            aria-label={`Delete Gradient Stop ${idx + 1}`}
                           >
                             <Icons.Trash size={12} />
                           </button>
@@ -420,6 +435,7 @@ export function HomeView({
                   onChange={(e) => editorState.setBgImage(e.target.value)}
                   placeholder="https://..."
                   className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all placeholder:text-slate-600"
+                  aria-label="Background Image URL"
                 />
                 {editorState.bgImage && (
                   <div className="flex gap-2">
@@ -442,7 +458,7 @@ export function HomeView({
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-800">
               <label className="text-[11px] font-medium text-slate-400">Show Grid</label>
-              <Switch checked={editorState.showGrid} onChange={editorState.setShowGrid} />
+              <Switch checked={editorState.showGrid} onChange={editorState.setShowGrid} aria-label="Toggle Grid" />
             </div>
           </div>
 
@@ -466,7 +482,7 @@ export function HomeView({
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                   {selectedIds.length > 1 ? `${selectedIds.length} Elements Selected` : 'Selected Element'}
                 </h3>
-                <button onClick={deleteSelected} className="text-slate-500 hover:text-red-400 transition-colors">
+                <button onClick={deleteSelected} className="text-slate-500 hover:text-red-400 transition-colors" aria-label="Delete Selected Element">
                   <Icons.Trash size={16} />
                 </button>
               </div>
@@ -484,6 +500,7 @@ export function HomeView({
                     value={Math.round(elements.find(el => el.id === selectedIds[0])?.x || 0)}
                     onChange={(val) => updateSelected('x', val)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                    aria-label="X Position"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -492,6 +509,7 @@ export function HomeView({
                     value={Math.round(elements.find(el => el.id === selectedIds[0])?.y || 0)}
                     onChange={(val) => updateSelected('y', val)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                    aria-label="Y Position"
                   />
                 </div>
               </div>
@@ -505,6 +523,7 @@ export function HomeView({
                       value={elements.find(el => el.id === selectedIds[0])?.text || ''}
                       onChange={(e) => updateSelected('text', e.target.value)}
                       className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none resize-y min-h-[80px] transition-all"
+                      aria-label="Text Content"
                     />
                   </div>
 
@@ -516,6 +535,7 @@ export function HomeView({
                           value={elements.find(el => el.id === selectedIds[0])?.size || 16}
                           onChange={(val) => updateSelected('size', val)}
                           className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                          aria-label="Font Size"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -524,6 +544,7 @@ export function HomeView({
                           value={elements.find(el => el.id === selectedIds[0])?.letterSpacing || 0}
                           onChange={(val) => updateSelected('letterSpacing', val)}
                           className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                          aria-label="Letter Spacing"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -534,6 +555,7 @@ export function HomeView({
                             value={elements.find(el => el.id === selectedIds[0])?.color || '#000000'}
                             onChange={(e) => updateSelected('color', e.target.value)}
                             className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
+                            aria-label="Text Color Hex"
                           />
                           <div className="relative w-8 h-8 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
                             <div className="absolute inset-0" style={{ backgroundColor: (elements.find(el => el.id === selectedIds[0])?.color || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.color : '#000000' }} />
@@ -542,6 +564,7 @@ export function HomeView({
                               value={(elements.find(el => el.id === selectedIds[0])?.color || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.color : '#000000'}
                               onChange={(e) => updateSelected('color', e.target.value)}
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              aria-label="Text Color Picker"
                             />
                           </div>
                         </div>
@@ -554,6 +577,7 @@ export function HomeView({
                               className="w-5 h-5 rounded border border-slate-700 hover:border-slate-500 hover:scale-110 transition-all"
                               style={{ backgroundColor: c }}
                               title={c}
+                              aria-label={`Set color to ${c}`}
                             />
                           ))}
                         </div>
@@ -579,6 +603,7 @@ export function HomeView({
                               placeholder="Search fonts..."
                               className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:border-blue-500 outline-none"
                               autoFocus
+                              aria-label="Search Fonts"
                             />
                           </div>
                           {['sans-serif', 'serif', 'monospace', ...fontState.googleFonts]
@@ -605,18 +630,21 @@ export function HomeView({
                       <button
                         onClick={() => updateSelected('bold', !elements.find(el => el.id === selectedIds[0])?.bold)}
                         className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.bold ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        aria-label="Toggle Bold"
                       >
                         <Icons.Bold size={16} />
                       </button>
                       <button
                         onClick={() => updateSelected('italic', !elements.find(el => el.id === selectedIds[0])?.italic)}
                         className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.italic ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        aria-label="Toggle Italic"
                       >
                         <Icons.Italic size={16} />
                       </button>
                       <button
                         onClick={() => updateSelected('underline', !elements.find(el => el.id === selectedIds[0])?.underline)}
                         className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.underline ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        aria-label="Toggle Underline"
                       >
                         <Icons.Underline size={16} />
                       </button>
@@ -626,18 +654,21 @@ export function HomeView({
                       <button
                         onClick={() => handleAlignChange('start')}
                         className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.align === 'start' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        aria-label="Align Left"
                       >
                         <Icons.AlignLeft size={16} />
                       </button>
                       <button
                         onClick={() => handleAlignChange('middle')}
                         className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.align === 'middle' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        aria-label="Align Center"
                       >
                         <Icons.AlignCenter size={16} />
                       </button>
                       <button
                         onClick={() => handleAlignChange('end')}
                         className={`flex-1 py-1.5 rounded hover:bg-slate-800 transition-colors flex items-center justify-center ${elements.find(el => el.id === selectedIds[0])?.align === 'end' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        aria-label="Align Right"
                       >
                         <Icons.AlignRight size={16} />
                       </button>
@@ -650,6 +681,7 @@ export function HomeView({
                         <Switch
                           checked={elements.find(el => el.id === selectedIds[0])?.shadowEnabled || false}
                           onChange={(checked) => updateSelected('shadowEnabled', checked)}
+                          aria-label="Toggle Shadow"
                         />
                       </div>
                       {elements.find(el => el.id === selectedIds[0])?.shadowEnabled && (
@@ -662,6 +694,7 @@ export function HomeView({
                                 value={elements.find(el => el.id === selectedIds[0])?.shadowColor || '#000000'}
                                 onChange={(e) => updateSelected('shadowColor', e.target.value)}
                                 className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
+                                aria-label="Shadow Color Hex"
                               />
                               <div className="relative w-8 h-8 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
                                 <div className="absolute inset-0" style={{ backgroundColor: (elements.find(el => el.id === selectedIds[0])?.shadowColor || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.shadowColor : '#000000' }} />
@@ -670,6 +703,7 @@ export function HomeView({
                                   value={(elements.find(el => el.id === selectedIds[0])?.shadowColor || '#000000').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.shadowColor : '#000000'}
                                   onChange={(e) => updateSelected('shadowColor', e.target.value)}
                                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  aria-label="Shadow Color Picker"
                                 />
                               </div>
                             </div>
@@ -680,6 +714,7 @@ export function HomeView({
                               value={elements.find(el => el.id === selectedIds[0])?.shadowBlur || 0}
                               onChange={(val) => updateSelected('shadowBlur', val)}
                               className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                              aria-label="Shadow Blur"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -688,6 +723,7 @@ export function HomeView({
                               value={elements.find(el => el.id === selectedIds[0])?.shadowOffsetX || 0}
                               onChange={(val) => updateSelected('shadowOffsetX', val)}
                               className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                              aria-label="Shadow Offset X"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -696,6 +732,7 @@ export function HomeView({
                               value={elements.find(el => el.id === selectedIds[0])?.shadowOffsetY || 0}
                               onChange={(val) => updateSelected('shadowOffsetY', val)}
                               className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                              aria-label="Shadow Offset Y"
                             />
                           </div>
                         </div>
@@ -712,6 +749,7 @@ export function HomeView({
                             const el = elements.find(el => el.id === selectedIds[0]);
                             updateSelected('neon', { ...el?.neon, enabled: checked });
                           }}
+                          aria-label="Toggle Neon Glow"
                         />
                       </div>
                       {elements.find(el => el.id === selectedIds[0])?.neon?.enabled && (
@@ -727,6 +765,7 @@ export function HomeView({
                                   updateSelected('neon', { ...el?.neon, color: e.target.value });
                                 }}
                                 className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
+                                aria-label="Neon Glow Color Hex"
                               />
                               <div className="relative w-8 h-8 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
                                 <div className="absolute inset-0" style={{ backgroundColor: (elements.find(el => el.id === selectedIds[0])?.neon?.color || '#00ff00').startsWith('#') ? elements.find(el => el.id === selectedIds[0])?.neon?.color : '#00ff00' }} />
@@ -738,6 +777,7 @@ export function HomeView({
                                     updateSelected('neon', { ...el?.neon, color: e.target.value });
                                   }}
                                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  aria-label="Neon Glow Color Picker"
                                 />
                               </div>
                             </div>
@@ -754,6 +794,7 @@ export function HomeView({
                                 updateSelected('neon', { ...el?.neon, intensity: Number(e.target.value) });
                               }}
                               className="w-full custom-range"
+                              aria-label="Neon Intensity"
                             />
                           </div>
                           <div className="col-span-2 space-y-1.5">
@@ -768,6 +809,22 @@ export function HomeView({
                                 updateSelected('neon', { ...el?.neon, propagation: Number(e.target.value) });
                               }}
                               className="w-full custom-range"
+                              aria-label="Neon Propagation"
+                            />
+                          </div>
+                          <div className="col-span-2 space-y-1.5">
+                            <label className="text-[11px] font-medium text-slate-400">Stroke Width</label>
+                            <input
+                              type="range"
+                              min="0.1" max="10"
+                              step="0.1"
+                              value={elements.find(el => el.id === selectedIds[0])?.neon?.strokeWidth || 2}
+                              onChange={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('neon', { ...el?.neon, strokeWidth: Number(e.target.value) });
+                              }}
+                              className="w-full custom-range"
+                              aria-label="Neon Stroke Width"
                             />
                           </div>
                         </div>
@@ -784,6 +841,7 @@ export function HomeView({
                             const el = elements.find(el => el.id === selectedIds[0]);
                             updateSelected('gradient', { ...el?.gradient, enabled: checked });
                           }}
+                          aria-label="Toggle Gradient Fill"
                         />
                       </div>
                       {elements.find(el => el.id === selectedIds[0])?.gradient?.enabled && (
@@ -799,6 +857,7 @@ export function HomeView({
                                 updateSelected('gradient', { ...el?.gradient, angle: Number(e.target.value) });
                               }}
                               className="w-full custom-range"
+                              aria-label="Gradient Angle"
                             />
                           </div>
 
@@ -829,6 +888,7 @@ export function HomeView({
                                       updateSelected('gradient', { ...el?.gradient, stops: newStops });
                                     }}
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    aria-label={`Gradient Stop Color ${idx + 1}`}
                                   />
                                 </div>
                                 <span className="text-xs font-mono text-slate-400 flex-1">{stop.color}</span>
@@ -846,6 +906,7 @@ export function HomeView({
                                       updateSelected('gradient', { ...el?.gradient, stops: newStops });
                                     }}
                                     className="w-12 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-right focus:border-blue-500 outline-none transition-all"
+                                    aria-label={`Gradient Stop Offset ${idx + 1}`}
                                   />
                                   <span className="text-xs text-slate-500">%</span>
                                 </div>
@@ -856,6 +917,7 @@ export function HomeView({
                                     updateSelected('gradient', { ...el?.gradient, stops: newStops });
                                   }}
                                   className="text-slate-600 hover:text-red-400"
+                                  aria-label={`Delete Gradient Stop ${idx + 1}`}
                                 >
                                   <Icons.Trash size={12} />
                                 </button>
@@ -868,6 +930,7 @@ export function HomeView({
                                 updateSelected('gradient', { ...el?.gradient, stops: newStops.sort((a, b) => a.offset - b.offset) });
                               }}
                               className="w-full py-1.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-400 rounded border border-slate-700 transition-colors"
+                              aria-label="Add Gradient Stop"
                             >
                               + Add Stop
                             </button>
@@ -889,13 +952,14 @@ export function HomeView({
                       value={elements.find(el => el.id === selectedIds[0])?.src || ''}
                       onChange={(e) => updateSelected('src', e.target.value)}
                       className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                      aria-label="Image URL"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <button onClick={fitToWidth} className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-md transition-all text-xs font-medium">
+                    <button onClick={fitToWidth} className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-md transition-all text-xs font-medium" aria-label="Fit Image to Width">
                       <Icons.Max size={14} /> Fit Width
                     </button>
-                    <button onClick={fitToHeight} className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-md transition-all text-xs font-medium">
+                    <button onClick={fitToHeight} className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-md transition-all text-xs font-medium" aria-label="Fit Image to Height">
                       <Icons.Max size={14} className="rotate-90" /> Fit Height
                     </button>
                   </div>
@@ -945,6 +1009,7 @@ export function HomeView({
               onClick={() => editorState.setZoom((z: number) => Math.max(0.1, z - 0.1))}
               className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-200 transition-colors"
               title="Zoom Out"
+              aria-label="Zoom Out"
             >
               <Icons.ZoomOut size={16} />
             </button>
@@ -952,16 +1017,13 @@ export function HomeView({
               {Math.round(editorState.zoom * 100)}%
             </span>
             <button
-              onClick={() => editorState.setZoom((z: number) => Math.min(5, z + 0.1))}
+              onClick={() => editorState.setZoom((z: number) => Math.min(3, z + 0.1))}
               className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-200 transition-colors"
               title="Zoom In"
+              aria-label="Zoom In"
             >
               <Icons.ZoomIn size={16} />
             </button>
-            <div className="w-px h-4 bg-slate-800 mx-1" />
-            <span className="text-xs text-slate-500 px-2">
-              {Math.round(editorState.canvasWidth)} x {Math.round(editorState.canvasHeight)} px
-            </span>
           </div>
         </div>
       </main>

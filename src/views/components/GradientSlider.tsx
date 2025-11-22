@@ -142,10 +142,27 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
                 {stops.map((stop, index) => (
                     <div
                         key={index}
-                        className="absolute top-1/2 -translate-y-1/2 w-6 h-6 -ml-3 cursor-ew-resize group z-10 flex items-center justify-center"
+                        className="absolute top-1/2 -translate-y-1/2 w-6 h-6 -ml-3 cursor-ew-resize group z-10 flex items-center justify-center outline-none"
                         style={{ left: `${stop.offset * 100}%` }}
                         onMouseDown={(e) => handleMouseDown(index, e)}
                         onClick={(e) => e.stopPropagation()} // Prevent track click
+                        role="slider"
+                        tabIndex={0}
+                        aria-label={`Gradient stop ${index + 1}`}
+                        aria-valuenow={Math.round(stop.offset * 100)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        onKeyDown={(e) => {
+                            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                                e.preventDefault();
+                                const step = e.shiftKey ? 0.1 : 0.01;
+                                const delta = e.key === 'ArrowRight' ? step : -step;
+                                const newOffset = Math.max(0, Math.min(1, stop.offset + delta));
+                                const newStops = [...stops];
+                                newStops[index] = { ...newStops[index], offset: Number(newOffset.toFixed(4)) };
+                                onChange(newStops);
+                            }
+                        }}
                     >
                         {/* The handle visual (white circle with border) */}
                         <div className={`

@@ -160,6 +160,13 @@ export interface WidgetData {
   bgColor: string;
   /** Blob color (for Ethereal style). */
   blobColor: string;
+  /** Background Gradient configuration. */
+  bgGradient?: {
+    enabled: boolean;
+    type: 'linear';
+    angle: number;
+    stops: GradientStop[];
+  };
   /** URL for a custom background image. */
   bgImage: string;
   /** How the background image fits. */

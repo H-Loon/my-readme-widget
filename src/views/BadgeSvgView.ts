@@ -297,6 +297,23 @@ export class BadgeSvgView {
       const effectiveTheme = theme === 'transparent' ? 'blue' : theme;
       const t = themes[effectiveTheme] || themes.blue;
       
+      // Determine gradient colors for blobs
+      let blob1Stops = '';
+      let blob2Stops = '';
+
+      if (bgGradient && bgGradient.enabled && bgGradient.stops && bgGradient.stops.length > 0) {
+        const sorted = [...bgGradient.stops].sort((a: any, b: any) => a.offset - b.offset);
+        blob1Stops = sorted.map((s: any) => `<stop offset="${s.offset * 100}%" stop-color="${s.color}" />`).join('');
+        // Reverse for variety
+        blob2Stops = [...sorted].reverse().map((s: any) => `<stop offset="${(1 - s.offset) * 100}%" stop-color="${s.color}" />`).join('');
+      } else if (bgColor) {
+        blob1Stops = `<stop offset="0%" stop-color="${bgColor}" /><stop offset="100%" stop-color="${bgColor}" />`;
+        blob2Stops = blob1Stops;
+      } else {
+        blob1Stops = `<stop offset="0%" stop-color="${t.from}" /><stop offset="100%" stop-color="${t.to}" />`;
+        blob2Stops = `<stop offset="0%" stop-color="${t.to}" /><stop offset="100%" stop-color="${t.from}" />`;
+      }
+      
       const padding = 250;
       const minX = padding;
       const maxX = width - padding;
@@ -341,8 +358,8 @@ export class BadgeSvgView {
             <feGaussianBlur in="SourceGraphic" stdDeviation="60" result="blur" />
             <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -7" result="goo" />
           </filter>
-          <linearGradient id="blob1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${t.from}" /><stop offset="100%" stop-color="${t.to}" /></linearGradient>
-          <linearGradient id="blob2" x1="100%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="${t.to}" /><stop offset="100%" stop-color="${t.from}" /></linearGradient>
+          <linearGradient id="blob1" x1="0%" y1="0%" x2="100%" y2="100%">${blob1Stops}</linearGradient>
+          <linearGradient id="blob2" x1="100%" y1="0%" x2="0%" y2="100%">${blob2Stops}</linearGradient>
         </defs>
         <g filter="url(#goo)" opacity="0.8">${blobCode}</g>
       `;

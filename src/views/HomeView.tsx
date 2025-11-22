@@ -102,6 +102,25 @@ export function HomeView({
             <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
               Readme Widget
             </span>
+            <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-800">
+              <a
+                href="https://github.com/H-Loon/my-readme-widget"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-400 hover:text-white transition-colors"
+                title="View Project on GitHub"
+              >
+                <Icons.Github size={20} />
+              </a>
+              <a
+                href="https://github.com/H-Loon"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-medium text-slate-500 hover:text-blue-400 transition-colors border border-slate-800 rounded-full px-2 py-0.5 bg-slate-900/50"
+              >
+                Made by H-Loon
+              </a>
+            </div>
           </div>
 
           {/* Center Controls: Undo/Redo and Widget Name */}

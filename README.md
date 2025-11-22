@@ -8,6 +8,7 @@ A powerful, interactive editor to create stunning dynamic widgets for your GitHu
 
 https://my-readme-widget.vercel.app
 
+![Widget](https://my-readme-widget.vercel.app/api/badge?id=yOLpRs5Y6LO1LV8ENRzN)
 ![Widget](https://my-readme-widget.vercel.app/api/badge?id=outcSEh6gf3b0uq6fBPf)
 
 ## Features

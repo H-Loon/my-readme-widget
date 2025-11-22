@@ -35,6 +35,7 @@ export class BadgeSvgView {
       customBgUrl = '',
       bgFit = 'cover',
       bgColor = '',
+      blobColor = '',
       bgGradient = null
     } = data;
 
@@ -108,7 +109,8 @@ export class BadgeSvgView {
 
         // Sanitize text content for XML
         const safeText = (el.text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const lines = safeText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+        // Match CanvasEditor logic: remove \r entirely to ensure line count and content matches
+        const lines = safeText.replace(/\r/g, '').split('\n');
         
         // Calculate approximate dimensions for gradient calculations
         const w = el.width || (safeText.length * el.size * 0.6) || 100;
@@ -116,6 +118,62 @@ export class BadgeSvgView {
 
         let svgTextAnchor = textAnchor;
         let xOffset = 0;
+
+        // Background Logic
+        let bgRect = '';
+        if (el.textBg?.enabled) {
+            const padding = el.textBg.padding ?? 4;
+            const bgOpacity = el.textBg.opacity ?? 1;
+            const bgColor = el.textBg.color || '#000000';
+            const radius = el.textBg.borderRadius ?? 4;
+            
+            if (el.textBg.mode === 'block') {
+                // Block mode: Standard bounding box around the text (previously 'fit')
+                let bgX = -padding;
+                let bgY = -padding;
+                let bgW = w + (padding * 2);
+                let bgH = h + (padding * 2);
+                
+                if (svgTextAnchor === 'middle') {
+                    bgX = -(w / 2) - padding;
+                } else if (svgTextAnchor === 'end') {
+                    bgX = -w - padding;
+                }
+                
+                bgRect = `<rect x="${bgX}" y="${bgY}" width="${bgW}" height="${bgH}" fill="${bgColor}" fill-opacity="${bgOpacity}" rx="${radius}" ry="${radius}" />`;
+            } else {
+                // Fit mode: Tight background per line (only under letters)
+                // We need to estimate line widths
+                const lineHeight = el.size * 1.1;
+                
+                bgRect = lines.map((line: string, i: number) => {
+                    // Skip empty lines
+                    if (!line || line.trim() === '') return '';
+
+                    // Use stored line width if available, otherwise estimate
+                    let lineWidth = 0;
+                    if (el.lineWidths && el.lineWidths[i] !== undefined) {
+                        lineWidth = el.lineWidths[i];
+                    } else {
+                        // Fallback estimation
+                        lineWidth = (line.length * el.size * 0.6) || 10;
+                    }
+                    
+                    let lineX = -padding;
+                    if (svgTextAnchor === 'middle') {
+                        lineX = -(lineWidth / 2) - padding;
+                    } else if (svgTextAnchor === 'end') {
+                        lineX = -lineWidth - padding;
+                    }
+                    
+                    const lineY = (i * lineHeight) - padding;
+                    const lineW = lineWidth + (padding * 2);
+                    const lineH = el.size + (padding * 2); // Height of highlight
+                    
+                    return `<rect x="${lineX}" y="${lineY}" width="${lineW}" height="${lineH}" fill="${bgColor}" fill-opacity="${bgOpacity}" rx="${radius}" ry="${radius}" />`;
+                }).join('');
+            }
+        }
 
         // Handle Text Gradient
         if (el.gradient?.enabled && el.gradient.stops && el.gradient.stops.length > 0) {
@@ -160,33 +218,48 @@ export class BadgeSvgView {
           // CSS text-shadow for neon effect
           shadowStyle = `text-shadow: 0 0 ${el.neon.intensity}px ${el.neon.color}, 0 0 ${el.neon.intensity * propagation}px ${el.neon.color};`;
           strokeAttr = `stroke="${el.neon.color}" stroke-width="${el.neon.strokeWidth || 2}"`;
-        } else if (el.shadowColor && el.shadowColor !== 'transparent') {
+        } else if (el.shadowEnabled && el.shadowColor && el.shadowColor !== 'transparent') {
           shadowStyle = `text-shadow: ${el.shadowOffsetX || 0}px ${el.shadowOffsetY || 0}px ${el.shadowBlur || 0}px ${el.shadowColor};`;
         }
 
         const letterSpacingAttr = el.letterSpacing ? `letter-spacing="${el.letterSpacing}px"` : '';
 
         // Handle Multi-line Text
-        let textContent = '';
+        // We manually calculate the X position of each line to ensure it matches the background perfectly
+        // This replaces the native text-anchor behavior which can be inconsistent with our background logic
         const decorationAttr = el.underline ? 'text-decoration="underline"' : '';
+        const lineHeight = 1.1; // em
 
-        if (lines.length === 1) {
-          textContent = `<tspan ${decorationAttr}>${safeText}</tspan>`;
-        } else {
-          const lineHeight = 1.2; // em
-          textContent = lines.map((line: string, i: number) => {
+        const textContent = lines.map((line: string, i: number) => {
             const dy = i === 0 ? 0 : lineHeight;
             const content = line === '' ? '&#8203;' : line; // Zero-width space for empty lines
-            return `<tspan x="0" dy="${dy}em" ${decorationAttr}>${content}</tspan>`;
-          }).join('');
-        }
+            
+            // Calculate X position based on alignment and line width
+            let lineWidth = 0;
+            if (el.lineWidths && el.lineWidths[i] !== undefined) {
+                lineWidth = el.lineWidths[i];
+            } else {
+                lineWidth = (line.length * el.size * 0.6) || 0;
+            }
+
+            let lineX = 0;
+            if (textAnchor === 'middle') {
+                lineX = -lineWidth / 2;
+            } else if (textAnchor === 'end') {
+                lineX = -lineWidth;
+            }
+
+            return `<tspan x="${lineX}" dy="${dy}em" ${decorationAttr}>${content}</tspan>`;
+        }).join('');
 
         return `
           ${defs}
           <g transform="translate(${el.x + xOffset}, ${el.y}) rotate(${el.rotation || 0})">
+              ${bgRect}
               <text 
               x="0" y="0" 
-              text-anchor="${svgTextAnchor}" 
+              opacity="${el.opacity ?? 1}"
+              text-anchor="start" 
               dominant-baseline="text-before-edge"
               font-family="${fontFamily}" 
               font-size="${el.size}" 
@@ -229,6 +302,7 @@ export class BadgeSvgView {
             href="${dataUri}" 
             x="${xPos}" 
             y="${yPos}" 
+            opacity="${el.opacity ?? 1}"
             ${transform}
             width="${el.width}" 
             height="${el.height}" 
@@ -288,14 +362,20 @@ export class BadgeSvgView {
     }
 
     // 3. Custom Solid Color Background (Only if style is 'custom' or fallback)
-    if (!backgroundSvg && (style === 'custom' || !style) && bgColor) {
-      backgroundSvg = `<rect width="${width}" height="${height}" fill="${bgColor}" />`;
+    if (!backgroundSvg && (style === 'custom' || !style)) {
+      const fill = bgColor || '#0f172a';
+      backgroundSvg = `<rect width="${width}" height="${height}" fill="${fill}" />`;
     }
 
     // 4. Ethereal Animated Blobs Background
     if (!backgroundSvg && style === 'ethereal') {
       const effectiveTheme = theme === 'transparent' ? 'blue' : theme;
       const t = themes[effectiveTheme] || themes.blue;
+      
+      // Determine background fill (solid or gradient)
+      // For Ethereal, we want transparent background by default unless specified
+      // But if we want to support a custom background color BEHIND blobs, we could use bgColor.
+      // However, the user requested transparency. So we will NOT render a background rect unless needed.
       
       // Determine gradient colors for blobs
       let blob1Stops = '';
@@ -306,6 +386,9 @@ export class BadgeSvgView {
         blob1Stops = sorted.map((s: any) => `<stop offset="${s.offset * 100}%" stop-color="${s.color}" />`).join('');
         // Reverse for variety
         blob2Stops = [...sorted].reverse().map((s: any) => `<stop offset="${(1 - s.offset) * 100}%" stop-color="${s.color}" />`).join('');
+      } else if (blobColor) {
+        blob1Stops = `<stop offset="0%" stop-color="${blobColor}" /><stop offset="100%" stop-color="${blobColor}" />`;
+        blob2Stops = blob1Stops;
       } else if (bgColor) {
         blob1Stops = `<stop offset="0%" stop-color="${bgColor}" /><stop offset="100%" stop-color="${bgColor}" />`;
         blob2Stops = blob1Stops;
@@ -314,11 +397,11 @@ export class BadgeSvgView {
         blob2Stops = `<stop offset="0%" stop-color="${t.to}" /><stop offset="100%" stop-color="${t.from}" />`;
       }
       
-      const padding = 250;
+      const padding = 120;
       const minX = padding;
       const maxX = width - padding;
-      const minY = 150;
-      const maxY = height - 250;
+      const minY = padding;
+      const maxY = height - padding;
       const segmentWidth = (maxX - minX) / blobCount;
 
       // Generate random blobs with animations

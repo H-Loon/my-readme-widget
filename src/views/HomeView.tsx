@@ -91,8 +91,61 @@ export function HomeView({
   const [previewZoom, setPreviewZoom] = React.useState(1);
   const [previewDarkMode, setPreviewDarkMode] = React.useState(true);
 
+  // Helper to get opacity percentage from color string
+  const getOpacity = (color: string): number => {
+    if (!color) return 100;
+    if (color === 'transparent') return 0;
+    if (color.startsWith('#')) {
+      if (color.length === 9) { // #RRGGBBAA
+        return Math.round((parseInt(color.slice(7, 9), 16) / 255) * 100);
+      }
+      return 100;
+    }
+    if (color.startsWith('rgba')) {
+      const match = color.match(/rgba?\(.*,\s*([\d.]+)\)/);
+      if (match) return Math.round(parseFloat(match[1]) * 100);
+    }
+    return 100;
+  };
+
+  // Helper to set opacity on color string
+  const setOpacity = (color: string, opacity: number): string => {
+    const alpha = Math.max(0, Math.min(100, opacity));
+    if (alpha === 0) return 'transparent';
+    
+    // Handle Hex
+    if (color.startsWith('#')) {
+      let hex = color;
+      if (hex.length === 4) hex = `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+      if (hex.length === 9) hex = hex.slice(0, 7); // Strip existing alpha
+      
+      const alphaHex = Math.round((alpha / 100) * 255).toString(16).padStart(2, '0');
+      return `${hex}${alphaHex}`;
+    }
+    
+    // Handle RGB/RGBA
+    if (color.startsWith('rgb')) {
+      const nums = color.match(/\d+/g);
+      if (nums && nums.length >= 3) {
+        return `rgba(${nums[0]}, ${nums[1]}, ${nums[2]}, ${alpha / 100})`;
+      }
+    }
+    
+    // Fallback for named colors or others: return as is if 100%, else try to convert?
+    // For simplicity, if it's not hex/rgb, we can't easily add alpha without a library.
+    // But we can return the color as is if opacity is 100.
+    return color;
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500/30">
+      {/* Beta Warning Banner */}
+      <div className="bg-amber-500/10 border-b border-amber-500/20 text-center py-1.5 px-4">
+        <p className="text-xs font-medium text-amber-200/80">
+          🚧 <span className="font-bold text-amber-200">Work in Progress:</span> You may encounter bugs as I am still working on this project.
+        </p>
+      </div>
+
       {/* Header Section */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-[1920px] mx-auto px-6 h-16 flex items-center justify-between gap-4">
@@ -117,10 +170,16 @@ export function HomeView({
                 href="https://github.com/H-Loon"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] font-medium text-slate-500 hover:text-blue-400 transition-colors border border-slate-800 rounded-full px-2 py-0.5 bg-slate-900/50"
+                className="text-[10px] font-medium text-slate-500 hover:text-blue-400 hover:border-blue-400 transition-colors border border-slate-800 rounded-full px-2 py-0.5 bg-slate-900/50"
               >
                 Made by H-Loon
               </a>
+              <button
+                onClick={() => window.open('https://github.com/H-Loon/my-readme-widget/issues/new', '_blank')}
+                className="text-[10px] font-medium text-slate-500 hover:text-red-400 hover:border-red-400 transition-colors border border-slate-800 rounded-full px-2 py-0.5 bg-slate-900/50"
+              >
+                Report Issue
+              </button>
             </div>
           </div>
 
@@ -168,12 +227,13 @@ export function HomeView({
             </button>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(getUrl());
-                alert("Copied to clipboard!");
+                const markdown = `![${widgetState.widgetName || 'Widget'}](${getUrl()})`;
+                navigator.clipboard.writeText(markdown);
+                alert("Markdown copied to clipboard!");
               }}
               className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 rounded-lg text-sm font-medium transition-colors"
             >
-              <Icons.Copy size={16} /> Copy URL
+              <Icons.Copy size={16} /> Copy Markdown
             </button>
             <button
               onClick={saveWidget}
@@ -321,19 +381,19 @@ export function HomeView({
                     <div className="flex items-center gap-2 h-[34px]">
                       <input
                         type="text"
-                        value={editorState.bgColor}
-                        onChange={(e) => editorState.setBgColor(e.target.value)}
+                        value={editorState.style === 'ethereal' ? editorState.blobColor : editorState.bgColor}
+                        onChange={(e) => editorState.style === 'ethereal' ? editorState.setBlobColor(e.target.value) : editorState.setBgColor(e.target.value)}
                         className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
-                        aria-label="Background Color Hex"
+                        aria-label={editorState.style === 'ethereal' ? 'Blob Color Hex' : 'Background Color Hex'}
                       />
                       <div className="relative w-8 h-8 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
-                        <div className="absolute inset-0" style={{ backgroundColor: editorState.bgColor.startsWith('#') ? editorState.bgColor : '#000000' }} />
+                        <div className="absolute inset-0" style={{ backgroundColor: (editorState.style === 'ethereal' ? editorState.blobColor : editorState.bgColor).startsWith('#') ? (editorState.style === 'ethereal' ? editorState.blobColor : editorState.bgColor) : '#000000' }} />
                         <input
                           type="color"
-                          value={editorState.bgColor.startsWith('#') ? editorState.bgColor : '#000000'}
-                          onChange={(e) => editorState.setBgColor(e.target.value)}
+                          value={(editorState.style === 'ethereal' ? editorState.blobColor : editorState.bgColor).startsWith('#') ? (editorState.style === 'ethereal' ? editorState.blobColor : editorState.bgColor) : '#000000'}
+                          onChange={(e) => editorState.style === 'ethereal' ? editorState.setBlobColor(e.target.value) : editorState.setBgColor(e.target.value)}
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                          aria-label="Background Color Picker"
+                          aria-label={editorState.style === 'ethereal' ? 'Blob Color Picker' : 'Background Color Picker'}
                         />
                       </div>
                     </div>
@@ -381,7 +441,34 @@ export function HomeView({
                               aria-label={`Gradient Stop Color ${idx + 1}`}
                             />
                           </div>
-                          <span className="text-xs font-mono text-slate-400 flex-1">{stop.color}</span>
+                          <input
+                            type="text"
+                            value={stop.color}
+                            onChange={(e) => {
+                              const newStops = [...editorState.bgGradient.stops];
+                              newStops[idx] = { ...newStops[idx], color: e.target.value };
+                              editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops });
+                            }}
+                            className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none transition-all"
+                            aria-label={`Gradient Stop Color Code ${idx + 1}`}
+                          />
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={getOpacity(stop.color)}
+                              onChange={(e) => {
+                                const newStops = [...editorState.bgGradient.stops];
+                                newStops[idx] = { ...newStops[idx], color: setOpacity(stop.color, Number(e.target.value)) };
+                                editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops });
+                              }}
+                              className="w-12 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-right focus:border-blue-500 outline-none transition-all"
+                              title="Opacity %"
+                              aria-label={`Gradient Stop Opacity ${idx + 1}`}
+                            />
+                            <span className="text-xs text-slate-500 opacity-50">Op</span>
+                          </div>
                           <div className="flex items-center gap-1">
                             <input
                               type="number"
@@ -512,6 +599,19 @@ export function HomeView({
                     aria-label="Y Position"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-slate-400">Opacity ({Math.round((elements.find(el => el.id === selectedIds[0])?.opacity ?? 1) * 100)}%)</label>
+                <input
+                  type="range"
+                  min="0" max="1"
+                  step="0.01"
+                  value={elements.find(el => el.id === selectedIds[0])?.opacity ?? 1}
+                  onChange={(e) => updateSelected('opacity', Number(e.target.value))}
+                  className="w-full custom-range"
+                  aria-label="Element Opacity"
+                />
               </div>
 
               {/* Text Properties */}
@@ -831,6 +931,123 @@ export function HomeView({
                       )}
                     </div>
 
+                    {/* Text Background */}
+                    <div className="space-y-2 pt-2 border-t border-slate-800/50">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-medium text-slate-400">Text Background</label>
+                        <Switch
+                          checked={elements.find(el => el.id === selectedIds[0])?.textBg?.enabled || false}
+                          onChange={(checked) => {
+                            const el = elements.find(el => el.id === selectedIds[0]);
+                            updateSelected('textBg', { 
+                                enabled: checked,
+                                color: el?.textBg?.color || '#000000',
+                                opacity: el?.textBg?.opacity ?? 1,
+                                mode: el?.textBg?.mode || 'fit',
+                                padding: el?.textBg?.padding ?? 4,
+                                borderRadius: el?.textBg?.borderRadius ?? 4
+                            });
+                          }}
+                          aria-label="Toggle Text Background"
+                        />
+                      </div>
+                      {elements.find(el => el.id === selectedIds[0])?.textBg?.enabled && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-medium text-slate-400">Color</label>
+                                <div className="flex items-center gap-2 h-[34px]">
+                                  <input
+                                    type="text"
+                                    value={elements.find(el => el.id === selectedIds[0])?.textBg?.color || '#000000'}
+                                    onChange={(e) => {
+                                      const el = elements.find(el => el.id === selectedIds[0]);
+                                      updateSelected('textBg', { ...el?.textBg, color: e.target.value });
+                                    }}
+                                    className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none uppercase transition-all"
+                                  />
+                                  <div className="relative w-8 h-8 rounded-md border border-slate-700 overflow-hidden shrink-0 hover:border-slate-500 transition-colors">
+                                    <div className="absolute inset-0" style={{ backgroundColor: elements.find(el => el.id === selectedIds[0])?.textBg?.color || '#000000' }} />
+                                    <input
+                                      type="color"
+                                      value={elements.find(el => el.id === selectedIds[0])?.textBg?.color || '#000000'}
+                                      onChange={(e) => {
+                                        const el = elements.find(el => el.id === selectedIds[0]);
+                                        updateSelected('textBg', { ...el?.textBg, color: e.target.value });
+                                      }}
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-medium text-slate-400">Mode</label>
+                                <div className="flex bg-slate-900 p-1 rounded-md border border-slate-800 h-[34px]">
+                                    <button
+                                        onClick={() => {
+                                            const el = elements.find(el => el.id === selectedIds[0]);
+                                            updateSelected('textBg', { ...el?.textBg, mode: 'fit' });
+                                        }}
+                                        className={`flex-1 text-[10px] rounded transition-colors ${elements.find(el => el.id === selectedIds[0])?.textBg?.mode !== 'block' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                                    >
+                                        Fit
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const el = elements.find(el => el.id === selectedIds[0]);
+                                            updateSelected('textBg', { ...el?.textBg, mode: 'block' });
+                                        }}
+                                        className={`flex-1 text-[10px] rounded transition-colors ${elements.find(el => el.id === selectedIds[0])?.textBg?.mode === 'block' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                                    >
+                                        Block
+                                    </button>
+                                </div>
+                              </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-slate-400">Opacity ({Math.round((elements.find(el => el.id === selectedIds[0])?.textBg?.opacity ?? 1) * 100)}%)</label>
+                            <input
+                              type="range"
+                              min="0" max="1"
+                              step="0.01"
+                              value={elements.find(el => el.id === selectedIds[0])?.textBg?.opacity ?? 1}
+                              onChange={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('textBg', { ...el?.textBg, opacity: Number(e.target.value) });
+                              }}
+                              className="w-full custom-range"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-medium text-slate-400">Padding</label>
+                                <NumberInput
+                                  value={elements.find(el => el.id === selectedIds[0])?.textBg?.padding ?? 4}
+                                  onChange={(val) => {
+                                    const el = elements.find(el => el.id === selectedIds[0]);
+                                    updateSelected('textBg', { ...el?.textBg, padding: val });
+                                  }}
+                                  className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-medium text-slate-400">Radius</label>
+                                <NumberInput
+                                  value={elements.find(el => el.id === selectedIds[0])?.textBg?.borderRadius ?? 4}
+                                  onChange={(val) => {
+                                    const el = elements.find(el => el.id === selectedIds[0]);
+                                    updateSelected('textBg', { ...el?.textBg, borderRadius: val });
+                                  }}
+                                  className="w-full bg-slate-900 border border-slate-800 rounded-md px-3 py-2 text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
+                                />
+                              </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Gradient */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -891,7 +1108,36 @@ export function HomeView({
                                     aria-label={`Gradient Stop Color ${idx + 1}`}
                                   />
                                 </div>
-                                <span className="text-xs font-mono text-slate-400 flex-1">{stop.color}</span>
+                                <input
+                                  type="text"
+                                  value={stop.color}
+                                  onChange={(e) => {
+                                    const el = elements.find(el => el.id === selectedIds[0]);
+                                    const newStops = [...(el?.gradient?.stops || [])];
+                                    newStops[idx] = { ...newStops[idx], color: e.target.value };
+                                    updateSelected('gradient', { ...el?.gradient, stops: newStops });
+                                  }}
+                                  className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:border-blue-500 outline-none transition-all"
+                                  aria-label={`Gradient Stop Color Code ${idx + 1}`}
+                                />
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={getOpacity(stop.color)}
+                                    onChange={(e) => {
+                                      const el = elements.find(el => el.id === selectedIds[0]);
+                                      const newStops = [...(el?.gradient?.stops || [])];
+                                      newStops[idx] = { ...newStops[idx], color: setOpacity(stop.color, Number(e.target.value)) };
+                                      updateSelected('gradient', { ...el?.gradient, stops: newStops });
+                                    }}
+                                    className="w-12 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-right focus:border-blue-500 outline-none transition-all"
+                                    title="Opacity %"
+                                    aria-label={`Gradient Stop Opacity ${idx + 1}`}
+                                  />
+                                  <span className="text-xs text-slate-500 opacity-50">Op</span>
+                                </div>
                                 <div className="flex items-center gap-1">
                                   <input
                                     type="number"
@@ -1001,6 +1247,7 @@ export function HomeView({
                   showGrid={editorState.showGrid}
                   style={editorState.style}
                   bgColor={editorState.bgColor}
+                  blobColor={editorState.blobColor}
                   bgGradient={editorState.bgGradient}
                 />
               </div>

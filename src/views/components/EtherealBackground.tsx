@@ -18,6 +18,7 @@ interface EtherealBackgroundProps {
   customFrom?: string;
   customTo?: string;
   bgColor?: string;
+  blobColor?: string;
   bgGradient?: {
     enabled: boolean;
     stops: { offset: number; color: string }[];
@@ -32,6 +33,7 @@ export const EtherealBackground: React.FC<EtherealBackgroundProps> = ({
   customFrom,
   customTo,
   bgColor,
+  blobColor,
   bgGradient
 }) => {
   // Define color themes mapping (legacy support)
@@ -58,6 +60,9 @@ export const EtherealBackground: React.FC<EtherealBackgroundProps> = ({
     
     // Reverse for variety in the second blob type
     gradientStops2 = [...sorted].reverse().map((s, i) => <stop key={i} offset={`${(1 - s.offset) * 100}%`} stopColor={s.color} />);
+  } else if (blobColor) {
+    gradientStops1 = [<stop key="0" offset="0%" stopColor={blobColor} />, <stop key="1" offset="100%" stopColor={blobColor} />];
+    gradientStops2 = gradientStops1;
   } else if (bgColor) {
     gradientStops1 = [<stop key="0" offset="0%" stopColor={bgColor} />, <stop key="1" offset="100%" stopColor={bgColor} />];
     gradientStops2 = gradientStops1;
@@ -76,15 +81,15 @@ export const EtherealBackground: React.FC<EtherealBackgroundProps> = ({
   }
 
   // Ensure background is not transparent for Ethereal unless explicitly desired (which is rare for this style)
-  if (bg === 'transparent') bg = '#0f172a';
+  // if (bg === 'transparent') bg = '#0f172a';
 
   // Generate blobs logic (memoized to prevent re-calculation on every render)
   const blobs = useMemo(() => {
-    const padding = 250;
+    const padding = 120;
     const minX = padding;
     const maxX = width - padding;
-    const minY = 150;
-    const maxY = height - 250;
+    const minY = padding;
+    const maxY = height - padding;
     const segmentWidth = (maxX - minX) / blobCount;
 
     return Array.from({ length: blobCount }).map((_, i) => {

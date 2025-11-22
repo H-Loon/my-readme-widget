@@ -76,6 +76,7 @@ interface CanvasEditorProps {
   showGrid?: boolean;
   style?: string;
   bgColor?: string;
+  blobColor?: string;
   bgGradient?: {
     enabled: boolean;
     type: 'linear';
@@ -127,6 +128,7 @@ const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid, onRe
       width={element.width}
       height={element.height}
       rotation={element.rotation || 0}
+      opacity={element.opacity ?? 1}
       draggable
       name="object"
       id={element.id}
@@ -153,8 +155,9 @@ const URLImage = ({ src, element, isSelected, onSelect, onChange, showGrid, onRe
  * Renders text that can be styled, resized, and moved.
  * Handles gradients, shadows, and neon effects.
  */
-const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onRegister, onDragStart, onDragMove, onDragEnd, onTransformEnd }: any) => {
+const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onRegister, onDragStart, onDragMove, onDragEnd, onTransformEnd, canvasWidth }: any) => {
   const shapeRef = useRef<any>(null);
+  const textRef = useRef<any>(null);
   const [dimensions, setDimensions] = React.useState({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -165,25 +168,51 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
 
   // Measure text dimensions when properties change
   useEffect(() => {
-    if (shapeRef.current) {
-      const w = shapeRef.current.width();
-      const h = shapeRef.current.height();
+    if (textRef.current) {
+      const w = textRef.current.width();
+      const h = textRef.current.height();
 
       setDimensions({ width: w, height: h });
 
+      // Calculate line widths for accurate SVG rendering
+      // Sanitize text to match SVG rendering logic (remove \r)
+      const cleanText = (element.text || '').replace(/\r/g, '');
+      const lines = cleanText.split('\n');
+      const calculatedLineWidths = lines.map((line: string) => {
+        if (!line) return 0;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+           ctx.font = `${element.bold ? 'bold ' : ''}${element.italic ? 'italic ' : ''}${element.size}px ${element.fontFamily}`;
+           let width = ctx.measureText(line).width;
+           // Add letter spacing if present
+           if (element.letterSpacing && line.length > 1) {
+             width += (line.length - 1) * element.letterSpacing;
+           }
+           return width;
+        }
+        return 0;
+      });
+
+      // Check if line widths changed
+      const lineWidthsChanged = !element.lineWidths || 
+        element.lineWidths.length !== calculatedLineWidths.length ||
+        element.lineWidths.some((lw: number, i: number) => Math.abs(lw - calculatedLineWidths[i]) > 1);
+
       // Sync dimensions to parent state for SVG generation
-      if (Math.abs(w - (element.width || 0)) > 1 || Math.abs(h - (element.height || 0)) > 1) {
+      if (Math.abs(w - (element.width || 0)) > 1 || Math.abs(h - (element.height || 0)) > 1 || lineWidthsChanged) {
         // Use a timeout to avoid render cycle warnings or conflicts
         setTimeout(() => {
           onChange({
             ...element,
             width: w,
-            height: h
+            height: h,
+            lineWidths: calculatedLineWidths
           }, false);
         }, 0);
       }
     }
-  }, [element.text, element.size, element.fontFamily, element.bold, element.italic, element.width, element.height]);
+  }, [element.text, element.size, element.fontFamily, element.bold, element.italic, element.width, element.height, element.textBg, element.lineWidths]);
 
   // Gradient logic
   let fillProps: any = {
@@ -257,6 +286,7 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
 
   // Calculate offset based on alignment to simulate text-anchor behavior
   const currentWidth = dimensions.width || element.width || 0;
+  const currentHeight = dimensions.height || element.height || 0;
   let offsetX = 0;
   if (element.align === 'middle') {
     offsetX = currentWidth / 2;
@@ -264,23 +294,93 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
     offsetX = currentWidth;
   }
 
+  // Background Logic
+  const bg = element.textBg;
+  let bgRect = null;
+  if (bg && bg.enabled) {
+    const padding = bg.padding || 0;
+    
+    if (bg.mode === 'block') {
+      // Block mode: Standard bounding box around the text (previously 'fit')
+      let bgX = -offsetX - padding;
+      let bgY = -padding;
+      let bgW = currentWidth + (padding * 2);
+      let bgH = currentHeight + (padding * 2);
+
+      bgRect = (
+        <Rect
+          x={bgX}
+          y={bgY}
+          width={bgW}
+          height={bgH}
+          fill={bg.color}
+          opacity={bg.opacity}
+          cornerRadius={bg.borderRadius || 0}
+        />
+      );
+    } else {
+      // Fit mode: Tight background per line (only under letters)
+      // We need to measure each line individually
+      const cleanText = (element.text || '').replace(/\r/g, '');
+      const lines = cleanText.split('\n');
+      const lineHeight = element.size * 1.1; // Match SVG line height
+      
+      bgRect = (
+        <>
+          {lines.map((line: string, i: number) => {
+            // Skip empty lines (newlines)
+            if (!line || line.trim() === '') return null;
+
+            // Create a temporary text object to measure width
+            // This is expensive in render loop, but necessary for "tight fit"
+            // Optimization: Memoize or use canvas context measureText
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+               ctx.font = `${element.bold ? 'bold ' : ''}${element.italic ? 'italic ' : ''}${element.size}px ${element.fontFamily}`;
+               let lineWidth = ctx.measureText(line).width;
+               if (element.letterSpacing && line.length > 1) {
+                 lineWidth += (line.length - 1) * element.letterSpacing;
+               }
+               
+               // Calculate X offset based on alignment
+               let lineX = -padding;
+               if (element.align === 'middle') {
+                 lineX = -lineWidth / 2 - padding;
+               } else if (element.align === 'end') {
+                 lineX = -lineWidth - padding;
+               } else {
+                 // Left align
+                 lineX = -padding; // relative to 0 (which is left edge of text group)
+               }
+
+               return (
+                 <Rect
+                   key={i}
+                   x={lineX}
+                   y={(i * lineHeight) - padding} // Approximate Y position
+                   width={lineWidth + (padding * 2)}
+                   height={element.size + (padding * 2)} // Height of the highlight
+                   fill={bg.color}
+                   opacity={bg.opacity}
+                   cornerRadius={bg.borderRadius || 0}
+                 />
+               );
+            }
+            return null;
+          })}
+        </>
+      );
+    }
+  }
+
   return (
-    <Text
+    <Group
       ref={shapeRef}
-      text={element.text}
       x={element.x}
       y={element.y}
-      offsetX={offsetX}
-      align={element.align === 'middle' ? 'center' : element.align === 'end' ? 'right' : 'left'}
-      fontSize={element.size}
-      fontFamily={element.fontFamily}
-      fontStyle={`${element.bold ? 'bold' : ''} ${element.italic ? 'italic' : ''}`.trim() || 'normal'}
-      textDecoration={element.underline ? 'underline' : ''}
-      letterSpacing={element.letterSpacing || 0}
-      {...fillProps}
-      {...shadowProps}
-      {...strokeProps}
       draggable
+      rotation={element.rotation || 0}
       name="object"
       id={element.id}
       dragBoundFunc={(pos) => {
@@ -303,14 +403,33 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
           y: snappedY
         };
       }}
-      rotation={element.rotation || 0}
       onClick={(e) => onSelect(element.id, e)}
       onTap={(e) => onSelect(element.id, e)}
       onDragStart={(e) => onDragStart(e, element.id)}
       onDragMove={(e) => onDragMove(e, element.id)}
       onDragEnd={(e) => onDragEnd(e, element.id)}
       onTransformEnd={(e) => onTransformEnd(e, element.id)}
-    />
+    >
+      {bgRect}
+      <Text
+        ref={textRef}
+        text={element.text}
+        opacity={element.opacity ?? 1}
+        x={0}
+        y={0}
+        offsetX={offsetX}
+        lineHeight={1.1}
+        align={element.align === 'middle' ? 'center' : element.align === 'end' ? 'right' : 'left'}
+        fontSize={element.size}
+        fontFamily={element.fontFamily}
+        fontStyle={`${element.bold ? 'bold' : ''} ${element.italic ? 'italic' : ''}`.trim() || 'normal'}
+        textDecoration={element.underline ? 'underline' : ''}
+        letterSpacing={element.letterSpacing || 0}
+        {...fillProps}
+        {...shadowProps}
+        {...strokeProps}
+      />
+    </Group>
   );
 };
 
@@ -319,8 +438,13 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
  * Renders the background image or color.
  * Handles different fit modes (cover, contain, stretch).
  */
-const BackgroundLayer = ({ width, height, bgImage, bgFit, theme, customFrom, customTo, blobCount, style, bgColor, bgGradient }: any) => {
-  const [image] = useImage(bgImage || '', 'anonymous');
+const BackgroundLayer = ({ width, height, bgImage, bgFit, theme, customFrom, customTo, blobCount, style, bgColor, blobColor, bgGradient }: any) => {
+  // Use proxy for background images to avoid CORS issues which prevent rendering in Canvas
+  const imageSrc = bgImage && (bgImage.startsWith('http') || bgImage.startsWith('//'))
+    ? `/api/proxy-image?url=${encodeURIComponent(bgImage)}`
+    : (bgImage || '');
+
+  const [image] = useImage(imageSrc, 'anonymous');
 
   // If using Ethereal style, the background is handled by the HTML layer behind the canvas
   if (style === 'ethereal') {
@@ -461,7 +585,7 @@ const GridLayer = ({ width, height }: { width: number; height: number }) => {
 /**
  * Main CanvasEditor Component
  */
-export default function CanvasEditor({ width, height, elements, selectedIds, onSelect, onChange, bgImage, bgFit, theme, customFrom, customTo, blobCount, showGrid, style, bgColor, bgGradient }: CanvasEditorProps) {
+export default function CanvasEditor({ width, height, elements, selectedIds, onSelect, onChange, bgImage, bgFit, theme, customFrom, customTo, blobCount, showGrid, style, bgColor, blobColor, bgGradient }: CanvasEditorProps) {
   const trRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
   const shapeRefs = useRef<any>({});
@@ -661,6 +785,7 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
               customFrom={customFrom}
               customTo={customTo}
               bgColor={bgColor}
+              blobColor={blobColor}
               bgGradient={bgGradient}
             />
           )}
@@ -690,6 +815,7 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
               blobCount={blobCount}
               style={style}
               bgColor={bgColor}
+              blobColor={blobColor}
               bgGradient={bgGradient}
             />
             {showGrid && <GridLayer width={width} height={height} />}
@@ -705,7 +831,8 @@ export default function CanvasEditor({ width, height, elements, selectedIds, onS
                   onDragStart: onDragStart,
                   onDragMove: onDragMove,
                   onDragEnd: onDragEnd,
-                  onTransformEnd: onTransformEnd
+                  onTransformEnd: onTransformEnd,
+                  canvasWidth: width
               };
               
               if (el.type === 'image') {

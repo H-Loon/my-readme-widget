@@ -22,6 +22,7 @@ interface GetApiUrlProps {
   bgImage: string;
   bgFit: string;
   bgColor: string;
+  blobColor?: string;
   bgGradient: any;
   origin: string;
   forcePreview?: boolean;
@@ -51,6 +52,7 @@ export const getApiUrl = ({
   bgImage,
   bgFit,
   bgColor,
+  blobColor,
   bgGradient,
   origin,
   forcePreview = false
@@ -81,6 +83,7 @@ export const getApiUrl = ({
   
   // Append new background properties
   if (bgColor) url += `&bgColor=${encodeURIComponent(bgColor)}`;
+  if (blobColor) url += `&blobColor=${encodeURIComponent(blobColor)}`;
   if (bgGradient && bgGradient.enabled) {
     url += `&bgGradient=${encodeURIComponent(JSON.stringify(bgGradient))}`;
   }

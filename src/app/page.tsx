@@ -129,6 +129,9 @@ export default function Home() {
           customTo: editorState.customTo,
           bgImage: editorState.bgImage,
           bgFit: editorState.bgFit,
+          bgColor: editorState.bgColor,
+          blobColor: editorState.blobColor,
+          bgGradient: editorState.bgGradient,
           dirty: true // Mark as modified
         };
       }
@@ -145,6 +148,9 @@ export default function Home() {
     editorState.customTo, 
     editorState.bgImage, 
     editorState.bgFit, 
+    editorState.bgColor,
+    editorState.blobColor,
+    editorState.bgGradient,
     widgetState.widgetName, 
     widgetState.savedId
   ]);
@@ -178,6 +184,7 @@ export default function Home() {
     bgImage: editorState.bgImage,
     bgFit: editorState.bgFit,
     bgColor: editorState.bgColor,
+    blobColor: editorState.blobColor,
     bgGradient: editorState.bgGradient,
     origin,
     forcePreview

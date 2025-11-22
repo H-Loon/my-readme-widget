@@ -20,8 +20,11 @@ export function useEditorState() {
   // The background style (e.g., 'solid', 'ethereal' blobs).
   const [style, setStyle] = useState('transparent');
 
-  // Background Color (for custom style or ethereal blobs base color)
+  // Background Color (for custom style)
   const [bgColor, setBgColor] = useState('#0f172a');
+
+  // Blob Color (for ethereal style)
+  const [blobColor, setBlobColor] = useState('#0f172a');
 
   // Background Gradient configuration
   const [bgGradient, setBgGradient] = useState({
@@ -62,6 +65,7 @@ export function useEditorState() {
     theme, setTheme,
     style, setStyle,
     bgColor, setBgColor,
+    blobColor, setBlobColor,
     bgGradient, setBgGradient,
     blobCount, setBlobCount,
     customFrom, setCustomFrom,

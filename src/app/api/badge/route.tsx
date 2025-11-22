@@ -49,6 +49,7 @@ export async function GET(request: Request) {
           customBgUrl: data.bgImage || '',
           bgFit: data.bgFit || 'cover',
           bgColor: data.bgColor || '',
+          blobColor: data.blobColor || '',
           bgGradient: data.bgGradient || null
         };
       }
@@ -96,6 +97,7 @@ export async function GET(request: Request) {
       customBgUrl: searchParams.get('bg') || '',
       bgFit: searchParams.get('bgFit') || 'cover',
       bgColor: searchParams.get('bgColor') || '',
+      blobColor: searchParams.get('blobColor') || '',
       bgGradient
     };
   }

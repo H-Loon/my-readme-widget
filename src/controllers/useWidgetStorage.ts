@@ -38,6 +38,12 @@ interface UseWidgetStorageProps {
   setBgImage: (i: string) => void;
   bgFit: 'cover' | 'contain';
   setBgFit: (f: 'cover' | 'contain') => void;
+  bgColor: string;
+  setBgColor: (c: string) => void;
+  blobColor: string;
+  setBlobColor: (c: string) => void;
+  bgGradient: any;
+  setBgGradient: (g: any) => void;
   savedId: string | null;
   setSavedId: (id: string | null) => void;
   savedWidgets: any[];
@@ -70,6 +76,12 @@ export function useWidgetStorage({
   setBgImage,
   bgFit,
   setBgFit,
+  bgColor,
+  setBgColor,
+  blobColor,
+  setBlobColor,
+  bgGradient,
+  setBgGradient,
   savedId,
   setSavedId,
   savedWidgets,
@@ -116,7 +128,10 @@ export function useWidgetStorage({
         customFrom,
         customTo,
         bgImage,
-        bgFit
+        bgFit,
+        bgColor,
+        blobColor,
+        bgGradient
       };
 
       // Save to Firestore via the Model.
@@ -167,6 +182,9 @@ export function useWidgetStorage({
     setCustomTo(widget.customTo || '#ec4899');
     setBgImage(widget.bgImage || '');
     setBgFit(widget.bgFit || 'cover');
+    setBgColor(widget.bgColor || '#0f172a');
+    setBlobColor(widget.blobColor || '#0f172a');
+    setBgGradient(widget.bgGradient || { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] });
     setWidgetName(widget.name || 'Untitled Widget');
     setSavedId(widget.id);
   };
@@ -196,6 +214,9 @@ export function useWidgetStorage({
       customTo: '#ec4899',
       bgImage: '',
       bgFit: 'cover',
+      bgColor: '#0f172a',
+      blobColor: '#0f172a',
+      bgGradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] },
       createdAt: { seconds: Date.now() / 1000 },
       dirty: true
     };

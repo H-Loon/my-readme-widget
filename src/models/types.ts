@@ -62,6 +62,25 @@ export interface CanvasElement {
   shadowOffsetY?: number;
   /** Spacing between characters in pixels. */
   letterSpacing?: number;
+  /** Array of line widths for multi-line text (used for accurate background rendering). */
+  lineWidths?: number[];
+
+  // --- Text Background Properties ---
+  /** Configuration for text background. */
+  textBg?: {
+    /** Whether the text background is enabled. */
+    enabled: boolean;
+    /** The color of the background. */
+    color: string;
+    /** Opacity of the background (0-1). */
+    opacity: number;
+    /** Mode: 'fit' (wraps text) or 'block' (fills element bounds). */
+    mode: 'fit' | 'block';
+    /** Padding around the text (for 'fit' mode). */
+    padding?: number;
+    /** Border radius of the background. */
+    borderRadius?: number;
+  };
 
   // --- Neon Effect Properties ---
   /** Configuration for the neon glow effect. */
@@ -102,6 +121,8 @@ export interface CanvasElement {
   scale?: number;
   /** Rotation angle in degrees. */
   rotation?: number;
+  /** Opacity of the element (0-1). Default 1. */
+  opacity?: number;
   /** How the image should fit within its bounds (like CSS object-fit). */
   fit?: 'contain' | 'cover' | 'stretch';
 }
@@ -135,6 +156,10 @@ export interface WidgetData {
   customFrom: string;
   /** Custom end color for background gradient. */
   customTo: string;
+  /** Background color (for Custom style). */
+  bgColor: string;
+  /** Blob color (for Ethereal style). */
+  blobColor: string;
   /** URL for a custom background image. */
   bgImage: string;
   /** How the background image fits. */

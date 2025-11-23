@@ -89,7 +89,8 @@ export default function Home() {
     saveWidget,
     loadWidget,
     createNew,
-    deleteWidget
+    deleteWidget,
+    duplicateWidget
   } = useWidgetStorage({
     user,
     elements,
@@ -220,6 +221,7 @@ export default function Home() {
       loadWidget={loadWidget}
       createNew={createNew}
       deleteWidget={deleteWidget}
+      duplicateWidget={duplicateWidget}
       getUrl={getUrl}
     />
   );

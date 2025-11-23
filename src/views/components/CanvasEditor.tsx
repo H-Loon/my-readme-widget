@@ -47,7 +47,7 @@ interface CanvasElement {
   };
   gradient?: {
     enabled: boolean;
-    type: 'linear';
+    type: 'linear' | 'radial';
     angle: number;
     stops: GradientStop[];
   };
@@ -79,7 +79,7 @@ interface CanvasEditorProps {
   blobColor?: string;
   bgGradient?: {
     enabled: boolean;
-    type: 'linear';
+    type: 'linear' | 'radial';
     angle: number;
     stops: GradientStop[];
   };
@@ -220,34 +220,43 @@ const EditableText = ({ element, isSelected, onSelect, onChange, showGrid, onReg
     fillPriority: 'color'
   };
   if (element.gradient?.enabled && element.gradient.stops && element.gradient.stops.length > 0) {
-    // Convert angle to radians. 0deg is usually top, 90deg right.
-    // Adjusting to match standard CSS linear-gradient direction
-    const angleRad = (element.gradient.angle - 90) * (Math.PI / 180);
-
     const w = dimensions.width || 100;
     const h = dimensions.height || 20;
-
-    // Center
     const cx = w / 2;
     const cy = h / 2;
-
-    // Radius (half diagonal) to ensure gradient covers the whole text
-    const r = Math.sqrt(w * w + h * h) / 2;
-
-    const startX = cx - r * Math.cos(angleRad);
-    const startY = cy - r * Math.sin(angleRad);
-    const endX = cx + r * Math.cos(angleRad);
-    const endY = cy + r * Math.sin(angleRad);
-
     const sortedStops = [...element.gradient.stops].sort((a: any, b: any) => a.offset - b.offset);
     const stops = sortedStops.flatMap((s: any) => [s.offset, s.color]);
 
-    fillProps = {
-      fillLinearGradientStartPoint: { x: startX, y: startY },
-      fillLinearGradientEndPoint: { x: endX, y: endY },
-      fillLinearGradientColorStops: stops,
-      fillPriority: 'linear-gradient'
-    };
+    if (element.gradient.type === 'radial') {
+        const r = Math.sqrt(w * w + h * h) / 2;
+        fillProps = {
+            fillRadialGradientStartPoint: { x: cx, y: cy },
+            fillRadialGradientStartRadius: 0,
+            fillRadialGradientEndPoint: { x: cx, y: cy },
+            fillRadialGradientEndRadius: r,
+            fillRadialGradientColorStops: stops,
+            fillPriority: 'radial-gradient'
+        };
+    } else {
+        // Convert angle to radians. 0deg is usually top, 90deg right.
+        // Adjusting to match standard CSS linear-gradient direction
+        const angleRad = (element.gradient.angle - 90) * (Math.PI / 180);
+
+        // Radius (half diagonal) to ensure gradient covers the whole text
+        const r = Math.sqrt(w * w + h * h) / 2;
+
+        const startX = cx - r * Math.cos(angleRad);
+        const startY = cy - r * Math.sin(angleRad);
+        const endX = cx + r * Math.cos(angleRad);
+        const endY = cy + r * Math.sin(angleRad);
+
+        fillProps = {
+            fillLinearGradientStartPoint: { x: startX, y: startY },
+            fillLinearGradientEndPoint: { x: endX, y: endY },
+            fillLinearGradientColorStops: stops,
+            fillPriority: 'linear-gradient'
+        };
+    }
   }
 
   // Shadow / Neon logic
@@ -511,27 +520,42 @@ const BackgroundLayer = ({ width, height, bgImage, bgFit, theme, customFrom, cus
 
   if (style === 'custom') {
     if (bgGradient?.enabled && bgGradient.stops && bgGradient.stops.length > 0) {
-       const angleRad = (bgGradient.angle - 90) * (Math.PI / 180);
        const cx = width / 2;
        const cy = height / 2;
-       const r = Math.sqrt(width * width + height * height) / 2;
-       const startX = cx - r * Math.cos(angleRad);
-       const startY = cy - r * Math.sin(angleRad);
-       const endX = cx + r * Math.cos(angleRad);
-       const endY = cy + r * Math.sin(angleRad);
-       
        const sortedStops = [...bgGradient.stops].sort((a: any, b: any) => a.offset - b.offset);
        const stops = sortedStops.flatMap((s: any) => [s.offset, s.color]);
 
-       return (
-         <Rect
-           width={width}
-           height={height}
-           fillLinearGradientStartPoint={{ x: startX, y: startY }}
-           fillLinearGradientEndPoint={{ x: endX, y: endY }}
-           fillLinearGradientColorStops={stops}
-         />
-       );
+       if (bgGradient.type === 'radial') {
+           const r = Math.sqrt(width * width + height * height) / 2;
+           return (
+             <Rect
+               width={width}
+               height={height}
+               fillRadialGradientStartPoint={{ x: cx, y: cy }}
+               fillRadialGradientStartRadius={0}
+               fillRadialGradientEndPoint={{ x: cx, y: cy }}
+               fillRadialGradientEndRadius={r}
+               fillRadialGradientColorStops={stops}
+             />
+           );
+       } else {
+           const angleRad = (bgGradient.angle - 90) * (Math.PI / 180);
+           const r = Math.sqrt(width * width + height * height) / 2;
+           const startX = cx - r * Math.cos(angleRad);
+           const startY = cy - r * Math.sin(angleRad);
+           const endX = cx + r * Math.cos(angleRad);
+           const endY = cy + r * Math.sin(angleRad);
+           
+           return (
+             <Rect
+               width={width}
+               height={height}
+               fillLinearGradientStartPoint={{ x: startX, y: startY }}
+               fillLinearGradientEndPoint={{ x: endX, y: endY }}
+               fillLinearGradientColorStops={stops}
+             />
+           );
+       }
     }
     return <Rect width={width} height={height} fill={bgColor || '#0f172a'} />;
   }

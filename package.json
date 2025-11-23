@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@vercel/speed-insights": "^1.2.0",
     "firebase": "^12.6.0",
     "konva": "^10.0.9",
     "lucide-react": "^0.554.0",

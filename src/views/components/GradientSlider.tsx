@@ -18,10 +18,11 @@ interface GradientStop {
 interface GradientSliderProps {
     stops: GradientStop[];          // Array of gradient stops
     onChange: (stops: GradientStop[]) => void; // Callback when stops change
+    onAfterChange?: (stops: GradientStop[]) => void; // Callback when dragging ends
     className?: string;             // Optional extra CSS classes
 }
 
-export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange, className = '' }) => {
+export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange, onAfterChange, className = '' }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [activeStopIndex, setActiveStopIndex] = useState<number | null>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -61,7 +62,12 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
 
         // Stop dragging on mouse up
         const handleMouseUp = () => {
-            setIsDragging(false);
+            if (isDragging) {
+                setIsDragging(false);
+                if (onAfterChange) {
+                    onAfterChange(stops);
+                }
+            }
         };
 
         if (isDragging) {
@@ -73,7 +79,7 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [isDragging, activeStopIndex, stops, onChange]);
+    }, [isDragging, activeStopIndex, stops, onChange, onAfterChange]);
 
     // Add a new stop when clicking on the empty track area
     const handleTrackClick = (e: React.MouseEvent) => {
@@ -93,7 +99,9 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
             color: '#ffffff'
         };
         
-        onChange([...stops, newStop]);
+        const newStops = [...stops, newStop];
+        onChange(newStops);
+        if (onAfterChange) onAfterChange(newStops);
         setActiveStopIndex(stops.length); // Select the new stop
     };
 
@@ -105,6 +113,7 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
         
         const newStops = stops.filter((_, i) => i !== index);
         onChange(newStops);
+        if (onAfterChange) onAfterChange(newStops);
         setActiveStopIndex(null);
     };
 
@@ -113,6 +122,7 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
         const newStops = [...stops];
         newStops[index] = { ...newStops[index], color };
         onChange(newStops);
+        if (onAfterChange) onAfterChange(newStops);
     };
 
     // Update offset manually
@@ -121,6 +131,7 @@ export const GradientSlider: React.FC<GradientSliderProps> = ({ stops, onChange,
         const offset = Math.max(0, Math.min(100, percentage)) / 100;
         newStops[index] = { ...newStops[index], offset };
         onChange(newStops);
+        if (onAfterChange) onAfterChange(newStops);
     };
 
     // Generate CSS gradient string for the preview background

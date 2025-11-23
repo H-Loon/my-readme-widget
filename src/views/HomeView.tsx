@@ -39,12 +39,12 @@ interface HomeViewProps {
   elements: CanvasElement[];
   history: any[];
   historyStep: number;
-  handleElementsChange: (elements: CanvasElement[]) => void;
+  handleElementsChange: (elements: CanvasElement[], saveHistory?: boolean) => void;
   undo: () => void;
   redo: () => void;
   addText: () => void;
   addImage: () => void;
-  updateSelected: (key: keyof CanvasElement, value: any) => void;
+  updateSelected: (key: keyof CanvasElement, value: any, saveHistory?: boolean) => void;
   deleteSelected: () => void;
   fitToWidth: () => void;
   fitToHeight: () => void;
@@ -55,6 +55,7 @@ interface HomeViewProps {
   loadWidget: (widget: any) => void;
   createNew: () => void;
   deleteWidget: (id: string, e: React.MouseEvent) => void;
+  duplicateWidget: (id: string, e: React.MouseEvent) => void;
   getUrl: (forcePreview?: boolean) => string;
 }
 
@@ -85,6 +86,7 @@ export function HomeView({
   loadWidget,
   createNew,
   deleteWidget,
+  duplicateWidget,
   getUrl
 }: HomeViewProps) {
   const [showPreview, setShowPreview] = React.useState(false);
@@ -155,7 +157,6 @@ export function HomeView({
   // Helper to set opacity on color string
   const setOpacity = (color: string, opacity: number): string => {
     const alpha = Math.max(0, Math.min(100, opacity));
-    if (alpha === 0) return 'transparent';
     
     // Handle Hex
     if (color.startsWith('#')) {
@@ -334,13 +335,24 @@ export function HomeView({
                       {w.name}
                       {(w.dirty || w.id.startsWith('temp_')) && <span className="text-amber-400 ml-1">*</span>}
                     </span>
-                    <button
-                      onClick={(e) => deleteWidget(w.id, e)}
-                      className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-opacity"
-                      aria-label={`Delete widget ${w.name}`}
-                    >
-                      <Icons.Trash size={14} />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => duplicateWidget(w.id, e)}
+                        className="text-slate-500 hover:text-blue-400"
+                        aria-label={`Duplicate widget ${w.name}`}
+                        title="Duplicate"
+                      >
+                        <Icons.Copy size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => deleteWidget(w.id, e)}
+                        className="text-slate-500 hover:text-red-400"
+                        aria-label={`Delete widget ${w.name}`}
+                        title="Delete"
+                      >
+                        <Icons.Trash size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -454,16 +466,36 @@ export function HomeView({
                 {editorState.bgGradient.enabled && (
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-medium text-slate-400">Angle ({editorState.bgGradient.angle}°)</label>
-                      <input
-                        type="range"
-                        min="0" max="360"
-                        value={editorState.bgGradient.angle}
-                        onChange={(e) => editorState.setBgGradient({ ...editorState.bgGradient, angle: Number(e.target.value) })}
-                        className="w-full custom-range"
-                        aria-label="Gradient Angle"
-                      />
+                      <label className="text-[11px] font-medium text-slate-400">Type</label>
+                      <div className="flex bg-slate-900 p-1 rounded-md border border-slate-800 h-[34px]">
+                        <button
+                          onClick={() => editorState.setBgGradient({ ...editorState.bgGradient, type: 'linear' })}
+                          className={`flex-1 text-[10px] rounded transition-colors ${editorState.bgGradient.type !== 'radial' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        >
+                          Linear
+                        </button>
+                        <button
+                          onClick={() => editorState.setBgGradient({ ...editorState.bgGradient, type: 'radial' })}
+                          className={`flex-1 text-[10px] rounded transition-colors ${editorState.bgGradient.type === 'radial' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                        >
+                          Radial
+                        </button>
+                      </div>
                     </div>
+
+                    {editorState.bgGradient.type !== 'radial' && (
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-medium text-slate-400">Angle ({editorState.bgGradient.angle}°)</label>
+                        <input
+                          type="range"
+                          min="0" max="360"
+                          value={editorState.bgGradient.angle}
+                          onChange={(e) => editorState.setBgGradient({ ...editorState.bgGradient, angle: Number(e.target.value) })}
+                          className="w-full custom-range"
+                          aria-label="Gradient Angle"
+                        />
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <label className="text-[11px] font-medium text-slate-400">Gradient Preview</label>
@@ -509,9 +541,13 @@ export function HomeView({
                               max="100"
                               value={getOpacity(stop.color)}
                               onChange={(e) => {
+                                const val = Number(e.target.value);
                                 const newStops = [...editorState.bgGradient.stops];
-                                newStops[idx] = { ...newStops[idx], color: setOpacity(stop.color, Number(e.target.value)) };
+                                newStops[idx] = { ...newStops[idx], color: setOpacity(stop.color, val) };
                                 editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops });
+                                if (/^0[0-9]/.test(e.target.value)) {
+                                  e.target.value = String(val);
+                                }
                               }}
                               className="w-12 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-right focus:border-blue-500 outline-none transition-all"
                               title="Opacity %"
@@ -526,10 +562,14 @@ export function HomeView({
                               max="100"
                               value={Math.round(stop.offset * 100)}
                               onChange={(e) => {
+                                const rawVal = Number(e.target.value);
+                                const val = Math.max(0, Math.min(100, rawVal));
                                 const newStops = [...editorState.bgGradient.stops];
-                                const val = Math.max(0, Math.min(100, Number(e.target.value)));
                                 newStops[idx] = { ...newStops[idx], offset: val / 100 };
                                 editorState.setBgGradient({ ...editorState.bgGradient, stops: newStops });
+                                if (/^0[0-9]/.test(e.target.value)) {
+                                  e.target.value = String(val);
+                                }
                               }}
                               className="w-12 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-right focus:border-blue-500 outline-none transition-all"
                               aria-label={`Gradient Stop Offset ${idx + 1}`}
@@ -694,7 +734,9 @@ export function HomeView({
                   min="0" max="1"
                   step="0.01"
                   value={elements.find(el => el.id === selectedIds[0])?.opacity ?? 1}
-                  onChange={(e) => updateSelected('opacity', Number(e.target.value))}
+                  onChange={(e) => updateSelected('opacity', Number(e.target.value), false)}
+                  onMouseUp={(e) => updateSelected('opacity', Number(e.currentTarget.value), true)}
+                  onTouchEnd={(e) => updateSelected('opacity', Number(e.currentTarget.value), true)}
                   className="w-full custom-range"
                   aria-label="Element Opacity"
                 />
@@ -977,7 +1019,15 @@ export function HomeView({
                               value={elements.find(el => el.id === selectedIds[0])?.neon?.intensity || 20}
                               onChange={(e) => {
                                 const el = elements.find(el => el.id === selectedIds[0]);
-                                updateSelected('neon', { ...el?.neon, intensity: Number(e.target.value) });
+                                updateSelected('neon', { ...el?.neon, intensity: Number(e.target.value) }, false);
+                              }}
+                              onMouseUp={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('neon', { ...el?.neon, intensity: Number(e.currentTarget.value) }, true);
+                              }}
+                              onTouchEnd={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('neon', { ...el?.neon, intensity: Number(e.currentTarget.value) }, true);
                               }}
                               className="w-full custom-range"
                               aria-label="Neon Intensity"
@@ -992,7 +1042,15 @@ export function HomeView({
                               value={elements.find(el => el.id === selectedIds[0])?.neon?.propagation || 2}
                               onChange={(e) => {
                                 const el = elements.find(el => el.id === selectedIds[0]);
-                                updateSelected('neon', { ...el?.neon, propagation: Number(e.target.value) });
+                                updateSelected('neon', { ...el?.neon, propagation: Number(e.target.value) }, false);
+                              }}
+                              onMouseUp={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('neon', { ...el?.neon, propagation: Number(e.currentTarget.value) }, true);
+                              }}
+                              onTouchEnd={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('neon', { ...el?.neon, propagation: Number(e.currentTarget.value) }, true);
                               }}
                               className="w-full custom-range"
                               aria-label="Neon Propagation"
@@ -1007,7 +1065,15 @@ export function HomeView({
                               value={elements.find(el => el.id === selectedIds[0])?.neon?.strokeWidth || 2}
                               onChange={(e) => {
                                 const el = elements.find(el => el.id === selectedIds[0]);
-                                updateSelected('neon', { ...el?.neon, strokeWidth: Number(e.target.value) });
+                                updateSelected('neon', { ...el?.neon, strokeWidth: Number(e.target.value) }, false);
+                              }}
+                              onMouseUp={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('neon', { ...el?.neon, strokeWidth: Number(e.currentTarget.value) }, true);
+                              }}
+                              onTouchEnd={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('neon', { ...el?.neon, strokeWidth: Number(e.currentTarget.value) }, true);
                               }}
                               className="w-full custom-range"
                               aria-label="Neon Stroke Width"
@@ -1100,7 +1166,15 @@ export function HomeView({
                               value={elements.find(el => el.id === selectedIds[0])?.textBg?.opacity ?? 1}
                               onChange={(e) => {
                                 const el = elements.find(el => el.id === selectedIds[0]);
-                                updateSelected('textBg', { ...el?.textBg, opacity: Number(e.target.value) });
+                                updateSelected('textBg', { ...el?.textBg, opacity: Number(e.target.value) }, false);
+                              }}
+                              onMouseUp={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('textBg', { ...el?.textBg, opacity: Number(e.currentTarget.value) }, true);
+                              }}
+                              onTouchEnd={(e) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('textBg', { ...el?.textBg, opacity: Number(e.currentTarget.value) }, true);
                               }}
                               className="w-full custom-range"
                             />
@@ -1150,19 +1224,53 @@ export function HomeView({
                       {elements.find(el => el.id === selectedIds[0])?.gradient?.enabled && (
                         <div className="space-y-3">
                           <div className="space-y-1.5">
-                            <label className="text-[11px] font-medium text-slate-400">Angle ({elements.find(el => el.id === selectedIds[0])?.gradient?.angle}°)</label>
-                            <input
-                              type="range"
-                              min="0" max="360"
-                              value={elements.find(el => el.id === selectedIds[0])?.gradient?.angle || 90}
-                              onChange={(e) => {
-                                const el = elements.find(el => el.id === selectedIds[0]);
-                                updateSelected('gradient', { ...el?.gradient, angle: Number(e.target.value) });
-                              }}
-                              className="w-full custom-range"
-                              aria-label="Gradient Angle"
-                            />
+                            <label className="text-[11px] font-medium text-slate-400">Type</label>
+                            <div className="flex bg-slate-900 p-1 rounded-md border border-slate-800 h-[34px]">
+                              <button
+                                onClick={() => {
+                                  const el = elements.find(el => el.id === selectedIds[0]);
+                                  updateSelected('gradient', { ...el?.gradient, type: 'linear' });
+                                }}
+                                className={`flex-1 text-[10px] rounded transition-colors ${elements.find(el => el.id === selectedIds[0])?.gradient?.type !== 'radial' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                              >
+                                Linear
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const el = elements.find(el => el.id === selectedIds[0]);
+                                  updateSelected('gradient', { ...el?.gradient, type: 'radial' });
+                                }}
+                                className={`flex-1 text-[10px] rounded transition-colors ${elements.find(el => el.id === selectedIds[0])?.gradient?.type === 'radial' ? 'bg-slate-800 text-blue-400' : 'text-slate-400'}`}
+                              >
+                                Radial
+                              </button>
+                            </div>
                           </div>
+
+                          {elements.find(el => el.id === selectedIds[0])?.gradient?.type !== 'radial' && (
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-medium text-slate-400">Angle ({elements.find(el => el.id === selectedIds[0])?.gradient?.angle}°)</label>
+                              <input
+                                type="range"
+                                min="0" max="360"
+                                value={elements.find(el => el.id === selectedIds[0])?.gradient?.angle || 90}
+                                onChange={(e) => {
+                                  const el = elements.find(el => el.id === selectedIds[0]);
+                                  updateSelected('gradient', { ...el?.gradient, angle: Number(e.target.value) }, false);
+                                }}
+                                onMouseUp={(e) => {
+                                  const el = elements.find(el => el.id === selectedIds[0]);
+                                  updateSelected('gradient', { ...el?.gradient, angle: Number(e.currentTarget.value) }, true);
+                                }}
+                                onTouchEnd={(e) => {
+                                  const el = elements.find(el => el.id === selectedIds[0]);
+                                  updateSelected('gradient', { ...el?.gradient, angle: Number(e.currentTarget.value) }, true);
+                                }}
+                                className="w-full custom-range"
+                                aria-label="Gradient Angle"
+                              />
+                            </div>
+                          )}
 
                           <div className="space-y-2">
                             <label className="text-[11px] font-medium text-slate-400">Gradient Preview</label>
@@ -1170,7 +1278,11 @@ export function HomeView({
                               stops={elements.find(el => el.id === selectedIds[0])?.gradient?.stops || []}
                               onChange={(newStops) => {
                                 const el = elements.find(el => el.id === selectedIds[0]);
-                                updateSelected('gradient', { ...el?.gradient, stops: newStops });
+                                updateSelected('gradient', { ...el?.gradient, stops: newStops }, false);
+                              }}
+                              onAfterChange={(newStops) => {
+                                const el = elements.find(el => el.id === selectedIds[0]);
+                                updateSelected('gradient', { ...el?.gradient, stops: newStops }, true);
                               }}
                             />
                           </div>
@@ -1213,10 +1325,14 @@ export function HomeView({
                                     max="100"
                                     value={getOpacity(stop.color)}
                                     onChange={(e) => {
+                                      const val = Number(e.target.value);
                                       const el = elements.find(el => el.id === selectedIds[0]);
                                       const newStops = [...(el?.gradient?.stops || [])];
-                                      newStops[idx] = { ...newStops[idx], color: setOpacity(stop.color, Number(e.target.value)) };
+                                      newStops[idx] = { ...newStops[idx], color: setOpacity(stop.color, val) };
                                       updateSelected('gradient', { ...el?.gradient, stops: newStops });
+                                      if (/^0[0-9]/.test(e.target.value)) {
+                                        e.target.value = String(val);
+                                      }
                                     }}
                                     className="w-12 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-right focus:border-blue-500 outline-none transition-all"
                                     title="Opacity %"
@@ -1231,11 +1347,15 @@ export function HomeView({
                                     max="100"
                                     value={Math.round(stop.offset * 100)}
                                     onChange={(e) => {
+                                      const rawVal = Number(e.target.value);
+                                      const val = Math.max(0, Math.min(100, rawVal));
                                       const el = elements.find(el => el.id === selectedIds[0]);
                                       const newStops = [...(el?.gradient?.stops || [])];
-                                      const val = Math.max(0, Math.min(100, Number(e.target.value)));
                                       newStops[idx] = { ...newStops[idx], offset: val / 100 };
                                       updateSelected('gradient', { ...el?.gradient, stops: newStops });
+                                      if (/^0[0-9]/.test(e.target.value)) {
+                                        e.target.value = String(val);
+                                      }
                                     }}
                                     className="w-12 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 text-right focus:border-blue-500 outline-none transition-all"
                                     aria-label={`Gradient Stop Offset ${idx + 1}`}

@@ -116,8 +116,9 @@ export function useCanvasOperations({
    * 
    * @param key - The property name to update (e.g., 'color', 'x', 'text').
    * @param value - The new value for the property.
+   * @param saveHistory - Whether to save this change to the undo history (default: true).
    */
-  const updateSelected = (key: keyof CanvasElement, value: any) => {
+  const updateSelected = (key: keyof CanvasElement, value: any, saveHistory = true) => {
     let finalValue = value;
     
     // Special handling for Image Source updates
@@ -141,7 +142,7 @@ export function useCanvasOperations({
 
     // Apply the change to all selected elements.
     const newElements = elements.map(el => selectedIds.includes(el.id) ? { ...el, [key]: finalValue } : el);
-    handleElementsChange(newElements);
+    handleElementsChange(newElements, saveHistory);
     
     // If image source changed, recalculate dimensions.
     if (key === 'src') {

@@ -102,9 +102,9 @@ export interface CanvasElement {
   gradient?: {
     /** Whether the gradient fill is turned on. */
     enabled: boolean;
-    /** The type of gradient (currently only linear is supported). */
-    type: 'linear';
-    /** The angle of the gradient in degrees. */
+    /** The type of gradient (linear or radial). */
+    type: 'linear' | 'radial';
+    /** The angle of the gradient in degrees (for linear gradients). */
     angle: number;
     /** The list of colors and their positions in the gradient. */
     stops: GradientStop[];
@@ -161,9 +161,9 @@ export interface WidgetData {
   /** Blob color (for Ethereal style). */
   blobColor: string;
   /** Background Gradient configuration. */
-  bgGradient?: {
+  gradient?: {
     enabled: boolean;
-    type: 'linear';
+    type: 'linear' | 'radial';
     angle: number;
     stops: GradientStop[];
   };

@@ -29,7 +29,13 @@ export function NumberInput({ className, value, onChange, min, max, step = 1, ..
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(Number(e.target.value));
+    const newValue = Number(e.target.value);
+    onChange(newValue);
+
+    // Fix for leading zeros (e.g. "025" -> "25")
+    if (/^0[0-9]/.test(e.target.value)) {
+      e.target.value = String(newValue);
+    }
   };
 
   // Prevent scroll from changing value and allow page scroll

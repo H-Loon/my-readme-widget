@@ -178,7 +178,10 @@ export class BadgeSvgView {
         // Handle Text Gradient
         if (el.gradient?.enabled && el.gradient.stops && el.gradient.stops.length > 0) {
           const gradId = `grad_${index}`;
-          const angle = el.gradient.angle || 90;
+          const sortedStops = [...el.gradient.stops].sort((a: any, b: any) => a.offset - b.offset);
+          const stops = sortedStops.map((s: any) =>
+            `<stop offset="${s.offset * 100}%" stop-color="${s.color}" />`
+          ).join('');
 
           // Calculate gradient vector based on text dimensions and angle
           let cx = 0;
@@ -187,26 +190,33 @@ export class BadgeSvgView {
           
           const cy = h / 2;
 
-          const rad = ((angle - 90) * Math.PI) / 180;
-          const r = Math.sqrt(w * w + h * h) / 2;
+          if (el.gradient.type === 'radial') {
+             const r = Math.sqrt(w * w + h * h) / 2;
+             defs += `
+               <defs>
+                 <radialGradient id="${gradId}" cx="${cx}" cy="${cy}" r="${r}" gradientUnits="userSpaceOnUse">
+                   ${stops}
+                 </radialGradient>
+               </defs>
+             `;
+          } else {
+             const angle = el.gradient.angle || 90;
+             const rad = ((angle - 90) * Math.PI) / 180;
+             const r = Math.sqrt(w * w + h * h) / 2;
 
-          const x1 = cx - r * Math.cos(rad);
-          const y1 = cy - r * Math.sin(rad);
-          const x2 = cx + r * Math.cos(rad);
-          const y2 = cy + r * Math.sin(rad);
+             const x1 = cx - r * Math.cos(rad);
+             const y1 = cy - r * Math.sin(rad);
+             const x2 = cx + r * Math.cos(rad);
+             const y2 = cy + r * Math.sin(rad);
 
-          const sortedStops = [...el.gradient.stops].sort((a: any, b: any) => a.offset - b.offset);
-          const stops = sortedStops.map((s: any) =>
-            `<stop offset="${s.offset * 100}%" stop-color="${s.color}" />`
-          ).join('');
-
-          defs += `
-             <defs>
-               <linearGradient id="${gradId}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" gradientUnits="userSpaceOnUse">
-                 ${stops}
-               </linearGradient>
-             </defs>
-           `;
+             defs += `
+               <defs>
+                 <linearGradient id="${gradId}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" gradientUnits="userSpaceOnUse">
+                   ${stops}
+                 </linearGradient>
+               </defs>
+             `;
+          }
           fill = `url(#${gradId})`;
         }
 
@@ -333,32 +343,48 @@ export class BadgeSvgView {
     }
 
     // 2. Custom Gradient Background (Only if style is 'custom' or fallback)
+    // Supports both linear and radial gradients.
     if (!backgroundSvg && (style === 'custom' || !style) && bgGradient && bgGradient.enabled && bgGradient.stops && bgGradient.stops.length > 0) {
-      const angle = bgGradient.angle || 90;
-      const rad = ((angle - 90) * Math.PI) / 180;
-      
-      const cx = width / 2;
-      const cy = height / 2;
-      const r = Math.sqrt(width * width + height * height) / 2;
-
-      const x1 = cx - r * Math.cos(rad);
-      const y1 = cy - r * Math.sin(rad);
-      const x2 = cx + r * Math.cos(rad);
-      const y2 = cy + r * Math.sin(rad);
-
       const sortedStops = [...bgGradient.stops].sort((a: any, b: any) => a.offset - b.offset);
       const stops = sortedStops.map((s: any) =>
         `<stop offset="${s.offset * 100}%" stop-color="${s.color}" />`
       ).join('');
 
-      backgroundSvg = `
-        <defs>
-          <linearGradient id="bgGrad" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" gradientUnits="userSpaceOnUse">
-            ${stops}
-          </linearGradient>
-        </defs>
-        <rect width="${width}" height="${height}" fill="url(#bgGrad)" />
-      `;
+      if (bgGradient.type === 'radial') {
+          const cx = width / 2;
+          const cy = height / 2;
+          const r = Math.sqrt(width * width + height * height) / 2;
+          
+          backgroundSvg = `
+            <defs>
+              <radialGradient id="bgGrad" cx="${cx}" cy="${cy}" r="${r}" gradientUnits="userSpaceOnUse">
+                ${stops}
+              </radialGradient>
+            </defs>
+            <rect width="${width}" height="${height}" fill="url(#bgGrad)" />
+          `;
+      } else {
+          const angle = bgGradient.angle || 90;
+          const rad = ((angle - 90) * Math.PI) / 180;
+          
+          const cx = width / 2;
+          const cy = height / 2;
+          const r = Math.sqrt(width * width + height * height) / 2;
+
+          const x1 = cx - r * Math.cos(rad);
+          const y1 = cy - r * Math.sin(rad);
+          const x2 = cx + r * Math.cos(rad);
+          const y2 = cy + r * Math.sin(rad);
+
+          backgroundSvg = `
+            <defs>
+              <linearGradient id="bgGrad" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" gradientUnits="userSpaceOnUse">
+                ${stops}
+              </linearGradient>
+            </defs>
+            <rect width="${width}" height="${height}" fill="url(#bgGrad)" />
+          `;
+      }
     }
 
     // 3. Custom Solid Color Background (Only if style is 'custom' or fallback)

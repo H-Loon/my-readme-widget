@@ -131,7 +131,7 @@ export function useWidgetStorage({
         bgFit,
         bgColor,
         blobColor,
-        bgGradient
+        gradient: bgGradient
       };
 
       // Save to Firestore via the Model.
@@ -184,7 +184,8 @@ export function useWidgetStorage({
     setBgFit(widget.bgFit || 'cover');
     setBgColor(widget.bgColor || '#0f172a');
     setBlobColor(widget.blobColor || '#0f172a');
-    setBgGradient(widget.bgGradient || { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] });
+    // Load gradient from 'gradient' property, falling back to 'bgGradient' for older widgets.
+    setBgGradient(widget.gradient || widget.bgGradient || { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] });
     setWidgetName(widget.name || 'Untitled Widget');
     setSavedId(widget.id);
   };
@@ -216,7 +217,7 @@ export function useWidgetStorage({
       bgFit: 'cover',
       bgColor: '#0f172a',
       blobColor: '#0f172a',
-      bgGradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] },
+      gradient: { enabled: false, type: 'linear', angle: 90, stops: [{ offset: 0, color: '#6366f1' }, { offset: 1, color: '#ec4899' }] },
       createdAt: { seconds: Date.now() / 1000 },
       dirty: true
     };
@@ -273,11 +274,36 @@ export function useWidgetStorage({
     }
   };
 
+  /**
+   * Duplicates an existing widget.
+   * 
+   * @param id - The ID of the widget to duplicate.
+   * @param e - The mouse event.
+   */
+  const duplicateWidget = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const widgetToDuplicate = savedWidgets.find(w => w.id === id);
+    if (!widgetToDuplicate) return;
+
+    const tempId = `temp_${Date.now()}`;
+    const newWidget = {
+      ...widgetToDuplicate,
+      id: tempId,
+      name: `Copy of ${widgetToDuplicate.name}`,
+      createdAt: { seconds: Date.now() / 1000 },
+      dirty: true
+    };
+
+    setSavedWidgets(prev => [newWidget, ...prev]);
+  };
+
   return {
     fetchWidgets,
     saveWidget,
     loadWidget,
     createNew,
-    deleteWidget
+    deleteWidget,
+    duplicateWidget
   };
 }
